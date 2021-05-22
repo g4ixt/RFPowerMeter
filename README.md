@@ -17,6 +17,8 @@ Cable attenuation compensation
 
 Attenuator offset scaling of readout
 
+Store, retrieve, update, delete 'known' attenuator/cable calibration data
+
 Peak Hold with reset
 
 Average over selected number of samples
