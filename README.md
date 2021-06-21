@@ -18,3 +18,5 @@ Interface to LimeSDR VNA programme for swept power plotting (if it's faster than
 dBm / Watts display simultaneously
 Power vs time graph in realtime with axes calibrated respecting attenuator & cable settings
 Notification of input signal outside best dynamic range
+correction or display of likely error based on signal level and frequency
+
