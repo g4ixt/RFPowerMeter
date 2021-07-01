@@ -1,18 +1,18 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-Created on Tue Jun  8 18:10:10 2021
-
+"""Created on Tue Jun  8 18:10:10 2021
 @author: ian jefferson
+AD8318 / AD RF power Meter
 """
 # import sys
 # import numpy
 from PyQt5 import QtWidgets
 from PyQt5.QtWidgets import QMessageBox
-from PyQt5.QtSql import QSqlDatabase
+from PyQt5.QtSql import QSqlDatabase, QSqlQuery, QSqlTableModel
 import spidev
 # import SQLlite
 import QtPowerMeter
+# from analoggaugewidget import AnalogGaugeWidget as AGW
 
 spi = spidev.SpiDev()
 
@@ -32,11 +32,16 @@ class Measurement():
         # dOut is data sent from the Pi to the AD7887, i.e. MOSI.
         # dIn is the RF power measurement result, i.e. MISO.
         try:
-            spi.open(0,0)
-            spi.max_speed_hz = speedVal[self.spiRate]
-            self.dIn = spi.xfer3(dOut, 2)
+            spi.open(1,0)  # bus 0, device 0
+            # spi.no_cs()
+            spi.mode = 0  # sets clock polarity and phase
+            spi.max_speed_hz = int(self.spiRate)
+            self.dIn = spi.xfer3([dOut, dOut], 2)
             spi.close()
-            self.dIn = int(self.dIn,base=2)
+            print(dOut)
+            print(self.spiRate)
+            print(self.dIn)
+            # self.dIn = int(self.dIn,base=2)
         except FileNotFoundError:
             msg = QMessageBox()
             msg.setIcon(QMessageBox.Critical)
@@ -49,7 +54,7 @@ class Measurement():
 
 # functions
 def calData():
-    cal = QSqlDatabase.addDatabase('QSQLITE')
+    cal = QSqlDatabase.Database('QSQLITE') # shouldn't do this if one exists, use .database(.. instead
     cal.setDatabaseName('calibration.sqlite')
     cal.open()
     cal.close()
@@ -60,6 +65,7 @@ def measPwr():
 
 # instantiate measurements
 slow = Measurement(1)
+# meter = AGW()
 
 # interfaces to the GUI
 
@@ -68,8 +74,11 @@ window = QtWidgets.QMainWindow()
 ui = QtPowerMeter.Ui_MainWindow()
 ui.setupUi(window)
 
+# adjust analog gauge meter
+# meter.widget.update_value(int(299))
+
 # Connect the form control events
-ui.measureButton.clicked.connect(measPwr)
+# ui.measureButton.clicked.connect(measPwr)
 
 calData()
 

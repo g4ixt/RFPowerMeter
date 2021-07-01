@@ -7,313 +7,338 @@
     <x>0</x>
     <y>0</y>
     <width>1083</width>
-    <height>710</height>
+    <height>778</height>
    </rect>
   </property>
   <property name="windowTitle">
    <string>MainWindow</string>
   </property>
   <widget class="QWidget" name="centralwidget">
-   <widget class="QLCDNumber" name="lcd">
+   <widget class="QTabWidget" name="tabWidget">
     <property name="geometry">
      <rect>
-      <x>30</x>
-      <y>20</y>
-      <width>241</width>
-      <height>51</height>
-     </rect>
-    </property>
-    <property name="digitCount">
-     <number>12</number>
-    </property>
-    <property name="mode">
-     <enum>QLCDNumber::Bin</enum>
-    </property>
-    <property name="segmentStyle">
-     <enum>QLCDNumber::Filled</enum>
-    </property>
-   </widget>
-   <widget class="QPushButton" name="measureButton">
-    <property name="geometry">
-     <rect>
-      <x>30</x>
-      <y>90</y>
-      <width>83</width>
-      <height>25</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>measure</string>
-    </property>
-   </widget>
-   <widget class="QTableWidget" name="calMeter">
-    <property name="geometry">
-     <rect>
-      <x>20</x>
-      <y>170</y>
-      <width>531</width>
-      <height>191</height>
-     </rect>
-    </property>
-    <property name="alternatingRowColors">
-     <bool>true</bool>
-    </property>
-    <property name="sortingEnabled">
-     <bool>true</bool>
-    </property>
-    <property name="columnCount">
-     <number>5</number>
-    </property>
-    <attribute name="horizontalHeaderVisible">
-     <bool>true</bool>
-    </attribute>
-    <attribute name="verticalHeaderVisible">
-     <bool>false</bool>
-    </attribute>
-    <row>
-     <property name="text">
-      <string>New Row</string>
-     </property>
-    </row>
-    <row>
-     <property name="text">
-      <string>New Row</string>
-     </property>
-    </row>
-    <column>
-     <property name="text">
-      <string>Frequency</string>
-     </property>
-    </column>
-    <column>
-     <property name="text">
-      <string>LowRefPower</string>
-     </property>
-    </column>
-    <column>
-     <property name="text">
-      <string>LowMeasPower</string>
-     </property>
-     <property name="background">
-      <color>
-       <red>255</red>
-       <green>255</green>
-       <blue>127</blue>
-      </color>
-     </property>
-    </column>
-    <column>
-     <property name="text">
-      <string>HighRefPower</string>
-     </property>
-    </column>
-    <column>
-     <property name="text">
-      <string>HighMeasPower</string>
-     </property>
-    </column>
-   </widget>
-   <widget class="QTableWidget" name="calCoupler">
-    <property name="geometry">
-     <rect>
-      <x>560</x>
-      <y>170</y>
-      <width>391</width>
-      <height>91</height>
-     </rect>
-    </property>
-    <attribute name="horizontalHeaderVisible">
-     <bool>true</bool>
-    </attribute>
-    <attribute name="verticalHeaderVisible">
-     <bool>false</bool>
-    </attribute>
-    <row>
-     <property name="text">
-      <string>New Row</string>
-     </property>
-    </row>
-    <row>
-     <property name="text">
-      <string>New Row</string>
-     </property>
-    </row>
-    <column>
-     <property name="text">
-      <string>Identifier</string>
-     </property>
-    </column>
-    <column>
-     <property name="text">
-      <string>Frequency</string>
-     </property>
-    </column>
-    <column>
-     <property name="text">
-      <string>Coupling</string>
-     </property>
-    </column>
-    <column>
-     <property name="text">
-      <string>In Use</string>
-     </property>
-    </column>
-   </widget>
-   <widget class="QSpinBox" name="measFrequency">
-    <property name="geometry">
-     <rect>
-      <x>130</x>
-      <y>90</y>
-      <width>111</width>
-      <height>26</height>
-     </rect>
-    </property>
-   </widget>
-   <widget class="QRadioButton" name="radioButton">
-    <property name="geometry">
-     <rect>
-      <x>140</x>
-      <y>130</y>
-      <width>106</width>
-      <height>23</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>Calibration</string>
-    </property>
-   </widget>
-   <widget class="QRadioButton" name="radioButton_2">
-    <property name="geometry">
-     <rect>
-      <x>20</x>
-      <y>130</y>
-      <width>121</width>
-      <height>23</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>Measurement</string>
-    </property>
-   </widget>
-   <widget class="QTableWidget" name="calAttenuator">
-    <property name="geometry">
-     <rect>
-      <x>560</x>
-      <y>270</y>
-      <width>391</width>
-      <height>91</height>
-     </rect>
-    </property>
-    <attribute name="horizontalHeaderVisible">
-     <bool>true</bool>
-    </attribute>
-    <attribute name="verticalHeaderVisible">
-     <bool>false</bool>
-    </attribute>
-    <row>
-     <property name="text">
-      <string>New Row</string>
-     </property>
-    </row>
-    <row>
-     <property name="text">
-      <string>New Row</string>
-     </property>
-    </row>
-    <column>
-     <property name="text">
-      <string>Identifier</string>
-     </property>
-    </column>
-    <column>
-     <property name="text">
-      <string>Frequency</string>
-     </property>
-    </column>
-    <column>
-     <property name="text">
-      <string>Attenuation</string>
-     </property>
-    </column>
-    <column>
-     <property name="text">
-      <string>In Use</string>
-     </property>
-    </column>
-   </widget>
-   <widget class="QGroupBox" name="groupBox">
-    <property name="geometry">
-     <rect>
-      <x>960</x>
+      <x>10</x>
       <y>10</y>
-      <width>120</width>
-      <height>191</height>
+      <width>1041</width>
+      <height>701</height>
      </rect>
     </property>
-    <property name="title">
-     <string>Attenuators</string>
+    <property name="currentIndex">
+     <number>1</number>
     </property>
-    <widget class="QPushButton" name="importCal">
-     <property name="geometry">
-      <rect>
-       <x>10</x>
-       <y>150</y>
-       <width>83</width>
-       <height>25</height>
-      </rect>
-     </property>
-     <property name="text">
-      <string>OK</string>
-     </property>
+    <widget class="QWidget" name="tab">
+     <attribute name="title">
+      <string>Display</string>
+     </attribute>
+     <widget class="QLCDNumber" name="lcd">
+      <property name="geometry">
+       <rect>
+        <x>20</x>
+        <y>410</y>
+        <width>501</width>
+        <height>181</height>
+       </rect>
+      </property>
+      <property name="font">
+       <font>
+        <pointsize>20</pointsize>
+       </font>
+      </property>
+      <property name="digitCount">
+       <number>6</number>
+      </property>
+      <property name="mode">
+       <enum>QLCDNumber::Dec</enum>
+      </property>
+      <property name="segmentStyle">
+       <enum>QLCDNumber::Flat</enum>
+      </property>
+     </widget>
+     <widget class="QFrame" name="frame">
+      <property name="geometry">
+       <rect>
+        <x>20</x>
+        <y>20</y>
+        <width>501</width>
+        <height>371</height>
+       </rect>
+      </property>
+      <property name="autoFillBackground">
+       <bool>true</bool>
+      </property>
+      <property name="frameShape">
+       <enum>QFrame::Box</enum>
+      </property>
+      <property name="frameShadow">
+       <enum>QFrame::Raised</enum>
+      </property>
+      <property name="lineWidth">
+       <number>2</number>
+      </property>
+      <property name="midLineWidth">
+       <number>2</number>
+      </property>
+      <widget class="AnalogGaugeWidget" name="meterWidget" native="true">
+       <property name="geometry">
+        <rect>
+         <x>20</x>
+         <y>30</y>
+         <width>461</width>
+         <height>321</height>
+        </rect>
+       </property>
+       <property name="autoFillBackground">
+        <bool>true</bool>
+       </property>
+       <property name="styleSheet">
+        <string notr="true"/>
+       </property>
+      </widget>
+     </widget>
     </widget>
-    <widget class="QRadioButton" name="radioButton_3">
-     <property name="geometry">
-      <rect>
-       <x>10</x>
-       <y>90</y>
-       <width>106</width>
-       <height>23</height>
-      </rect>
-     </property>
-     <property name="text">
-      <string>Import s2p</string>
-     </property>
+    <widget class="QWidget" name="tab_2">
+     <attribute name="title">
+      <string>Attenuators</string>
+     </attribute>
+     <widget class="QGroupBox" name="groupBox">
+      <property name="geometry">
+       <rect>
+        <x>500</x>
+        <y>120</y>
+        <width>120</width>
+        <height>191</height>
+       </rect>
+      </property>
+      <property name="title">
+       <string>Attenuators</string>
+      </property>
+      <widget class="QPushButton" name="importCal">
+       <property name="geometry">
+        <rect>
+         <x>10</x>
+         <y>150</y>
+         <width>83</width>
+         <height>25</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>OK</string>
+       </property>
+      </widget>
+      <widget class="QRadioButton" name="radioButton_3">
+       <property name="geometry">
+        <rect>
+         <x>10</x>
+         <y>90</y>
+         <width>106</width>
+         <height>23</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Import s2p</string>
+       </property>
+      </widget>
+      <widget class="QRadioButton" name="radioButton_4">
+       <property name="geometry">
+        <rect>
+         <x>10</x>
+         <y>120</y>
+         <width>106</width>
+         <height>23</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Delete</string>
+       </property>
+      </widget>
+      <widget class="QRadioButton" name="radioButton_5">
+       <property name="geometry">
+        <rect>
+         <x>10</x>
+         <y>60</y>
+         <width>106</width>
+         <height>23</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Use</string>
+       </property>
+      </widget>
+      <widget class="QSpinBox" name="spinBox">
+       <property name="geometry">
+        <rect>
+         <x>10</x>
+         <y>30</y>
+         <width>101</width>
+         <height>26</height>
+        </rect>
+       </property>
+      </widget>
+     </widget>
+     <widget class="QTableWidget" name="calCoupler">
+      <property name="geometry">
+       <rect>
+        <x>40</x>
+        <y>110</y>
+        <width>391</width>
+        <height>91</height>
+       </rect>
+      </property>
+      <attribute name="horizontalHeaderVisible">
+       <bool>false</bool>
+      </attribute>
+      <attribute name="verticalHeaderVisible">
+       <bool>false</bool>
+      </attribute>
+      <row>
+       <property name="text">
+        <string>New Row</string>
+       </property>
+      </row>
+      <row>
+       <property name="text">
+        <string>New Row</string>
+       </property>
+      </row>
+      <column>
+       <property name="text">
+        <string>Identifier</string>
+       </property>
+      </column>
+      <column>
+       <property name="text">
+        <string>Frequency</string>
+       </property>
+      </column>
+      <column>
+       <property name="text">
+        <string>Coupling</string>
+       </property>
+      </column>
+      <column>
+       <property name="text">
+        <string>In Use</string>
+       </property>
+      </column>
+     </widget>
+     <widget class="QTableWidget" name="calAttenuator">
+      <property name="geometry">
+       <rect>
+        <x>40</x>
+        <y>250</y>
+        <width>391</width>
+        <height>91</height>
+       </rect>
+      </property>
+      <attribute name="horizontalHeaderVisible">
+       <bool>false</bool>
+      </attribute>
+      <attribute name="verticalHeaderVisible">
+       <bool>false</bool>
+      </attribute>
+      <row>
+       <property name="text">
+        <string>New Row</string>
+       </property>
+      </row>
+      <row>
+       <property name="text">
+        <string>New Row</string>
+       </property>
+      </row>
+      <column>
+       <property name="text">
+        <string>Identifier</string>
+       </property>
+      </column>
+      <column>
+       <property name="text">
+        <string>Frequency</string>
+       </property>
+      </column>
+      <column>
+       <property name="text">
+        <string>Attenuation</string>
+       </property>
+      </column>
+      <column>
+       <property name="text">
+        <string>In Use</string>
+       </property>
+      </column>
+     </widget>
     </widget>
-    <widget class="QRadioButton" name="radioButton_4">
-     <property name="geometry">
-      <rect>
-       <x>10</x>
-       <y>120</y>
-       <width>106</width>
-       <height>23</height>
-      </rect>
-     </property>
-     <property name="text">
-      <string>Delete</string>
-     </property>
-    </widget>
-    <widget class="QRadioButton" name="radioButton_5">
-     <property name="geometry">
-      <rect>
-       <x>10</x>
-       <y>60</y>
-       <width>106</width>
-       <height>23</height>
-      </rect>
-     </property>
-     <property name="text">
-      <string>Use</string>
-     </property>
-    </widget>
-    <widget class="QSpinBox" name="spinBox">
-     <property name="geometry">
-      <rect>
-       <x>10</x>
-       <y>30</y>
-       <width>101</width>
-       <height>26</height>
-      </rect>
-     </property>
+    <widget class="QWidget" name="tab_3">
+     <attribute name="title">
+      <string>Calibration</string>
+     </attribute>
+     <widget class="QTableWidget" name="calMeter">
+      <property name="geometry">
+       <rect>
+        <x>20</x>
+        <y>20</y>
+        <width>531</width>
+        <height>191</height>
+       </rect>
+      </property>
+      <property name="alternatingRowColors">
+       <bool>true</bool>
+      </property>
+      <property name="sortingEnabled">
+       <bool>true</bool>
+      </property>
+      <property name="columnCount">
+       <number>5</number>
+      </property>
+      <attribute name="horizontalHeaderVisible">
+       <bool>false</bool>
+      </attribute>
+      <attribute name="verticalHeaderVisible">
+       <bool>false</bool>
+      </attribute>
+      <row>
+       <property name="text">
+        <string>New Row</string>
+       </property>
+      </row>
+      <row>
+       <property name="text">
+        <string>New Row</string>
+       </property>
+      </row>
+      <column>
+       <property name="text">
+        <string>Frequency</string>
+       </property>
+      </column>
+      <column>
+       <property name="text">
+        <string>LowRefPower</string>
+       </property>
+      </column>
+      <column>
+       <property name="text">
+        <string>LowMeasPower</string>
+       </property>
+       <property name="background">
+        <color>
+         <red>255</red>
+         <green>255</green>
+         <blue>127</blue>
+        </color>
+       </property>
+      </column>
+      <column>
+       <property name="text">
+        <string>HighRefPower</string>
+       </property>
+      </column>
+      <column>
+       <property name="text">
+        <string>HighMeasPower</string>
+       </property>
+      </column>
+     </widget>
     </widget>
    </widget>
   </widget>
@@ -329,6 +354,26 @@
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
  </widget>
+ <customwidgets>
+  <customwidget>
+   <class>AnalogGaugeWidget</class>
+   <extends>QWidget</extends>
+   <header>analoggaugewidget</header>
+   <container>1</container>
+   <slots>
+    <signal>valueChanged(int)</signal>
+    <slot>update_angle_offset(int)</slot>
+    <slot>update_value(int)</slot>
+    <slot>update_value2(int)</slot>
+    <slot>set_start_scale_angle(int)</slot>
+    <slot>set_total_scale_angle_size(int)</slot>
+    <slot>set_MinValue(int)</slot>
+    <slot>set_MaxValue(int)</slot>
+    <slot>set_NeedleColor(int)</slot>
+    <slot>set_scala_main_count(int)</slot>
+   </slots>
+  </customwidget>
+ </customwidgets>
  <resources/>
  <connections/>
 </ui>
