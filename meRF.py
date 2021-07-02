@@ -6,9 +6,9 @@ AD8318 / AD RF power Meter
 """
 # import sys
 # import numpy
-from PyQt5 import QtWidgets
-from PyQt5.QtWidgets import QMessageBox
-from PyQt5.QtSql import QSqlDatabase, QSqlQuery, QSqlTableModel
+from PyQt5 import QtWidgets, QtCore
+from PyQt5.QtWidgets import QMessageBox, QDataWidgetMapper
+from PyQt5.QtSql import QSqlDatabase, QSqlTableModel
 import spidev
 # import SQLlite
 import QtPowerMeter
@@ -49,15 +49,50 @@ class Measurement():
             msg.setStandardButtons(QMessageBox.Ok)
             msg.exec_()
 
-
+         
 ##############################################################################
 
 # functions
-def calData():
-    cal = QSqlDatabase.Database('QSQLITE') # shouldn't do this if one exists, use .database(.. instead
-    cal.setDatabaseName('calibration.sqlite')
-    cal.open()
-    cal.close()
+def openDatabase():
+    
+    meterData = QSqlDatabase.addDatabase('QSQLITE')
+    
+    if not QtCore.QFile.exists('powerMeter.db'):
+        msg = QMessageBox()
+        msg.setIcon(QMessageBox.Critical)
+        msg.setText('Database file missing')
+        msg.setStandardButtons(QMessageBox.Ok)
+        msg.exec_()
+    else:        
+        meterData.setDatabaseName('powerMeter.db')
+        meterData.open()
+    
+   # dataModels()
+    
+    # cal.close()
+    # QSqlRelationalTableModel
+    
+def dataModels():
+    # set up data models and bind them to the table widgets of the GUI
+    
+    # add exception handling?
+  
+    attenuators = QSqlTableModel()
+    attenuators.setTable("Device")
+    attenuators.select()
+    attenuators.setEditStrategy(QSqlTableModel.OnRowChange)
+    ui.browseDevices.setModel(attenuators)
+    
+    powerCal = QSqlTableModel()
+    powerCal.setTable("Calibration")
+    powerCal.select()
+    powerCal.setEditStrategy(QSqlTableModel.OnRowChange)
+    ui.calTable.setModel(powerCal)
+    
+    attenUpdate = QDataWidgetMapper()
+    attenUpdate.setModel(attenuators)
+    attenUpdate.addMapping(ui.widgetMapper, section, propertyName)
+    
 
 def measPwr():
     power = slow.readSPI()
@@ -80,7 +115,8 @@ ui.setupUi(window)
 # Connect the form control events
 # ui.measureButton.clicked.connect(measPwr)
 
-calData()
+openDatabase()
+dataModels()
 
 window.show()
 window.setWindowTitle('Qt Power Meter')
