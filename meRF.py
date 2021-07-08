@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """Created on Tue Jun  8 18:10:10 2021
-@author: ian jefferson
-AD8318 / AD RF power Meter
+@author: Ian Jefferson G4IXT
+A RF power meter programme for the AD8318/AD7887 RF power detector sold by Matkis SV1AFN https://www.sv1afn.com/
 """
 # import sys
 # import numpy
@@ -12,7 +12,6 @@ from PyQt5.QtSql import QSqlDatabase, QSqlTableModel
 import spidev
 # import SQLlite
 import QtPowerMeter
-# from analoggaugewidget import AnalogGaugeWidget as AGW
 
 spi = spidev.SpiDev()
 
@@ -80,23 +79,28 @@ def dataModels():
     attenuators = QSqlTableModel()
     attenuators.setTable("Device")
     attenuators.select()
-    attenuators.setEditStrategy(QSqlTableModel.OnRowChange)
+    attenuators.setEditStrategy(QSqlTableModel.OnRowChange) # find out how it works
     ui.browseDevices.setModel(attenuators)
     
     powerCal = QSqlTableModel()
     powerCal.setTable("Calibration")
     powerCal.select()
-    powerCal.setEditStrategy(QSqlTableModel.OnRowChange)
+    powerCal.setEditStrategy(QSqlTableModel.OnRowChange) # find out how it works
     ui.calTable.setModel(powerCal)
     
     attenUpdate = QDataWidgetMapper()
     attenUpdate.setModel(attenuators)
-    attenUpdate.addMapping(ui.widgetMapper, section, propertyName)
+    attenUpdate.setSubmitPolicy(QDataWidgetMapper.ManualSubmit) # find out how it works
+    attenUpdate.addMapping(ui.lineEdit, 3)
+    attenUpdate.toFirst()
+    
     
 
 def measPwr():
     power = slow.readSPI()
     ui.lcd.display(power)
+    
+    ui.meterWidget.update_value(150, mouse_controlled=False) # this is how to set the value
 
 # instantiate measurements
 slow = Measurement(1)
