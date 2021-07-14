@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """Created on Tue Jun  8 18:10:10 2021
 @author: Ian Jefferson G4IXT
-A RF power meter programme for the AD8318/AD7887 RF power detector sold by Matkis SV1AFN https://www.sv1afn.com/
+RF power meter programme for the AD8318/AD7887 power detector sold by Matkis SV1AFN https://www.sv1afn.com/
 """
 # import sys
 # import numpy
@@ -17,8 +17,13 @@ spi = spidev.SpiDev()
 
 # the spi max_speed_hz must be chosen from a value accepted by the driver : Pi does not work above 31.2e6
 speedVal = [7.629e3, 15.2e3, 30.5e3, 61e3, 122e3, 244e3, 488e3, 976e3, 1.953e6, 3.9e6, 7.8e6, 15.6e6, 31.2e6, 62.5e6, 125e6]
+
 # AD7887 ADC control register setting for external reference, single channel, always powered up
 dOut = 0b00100001
+
+
+##############################################################################
+# classes
 
 class Measurement():
     '''Read AD8318 RF Power value via AD7887 ADC using the Serial Peripheral Interface (SPI)'''
@@ -26,12 +31,12 @@ class Measurement():
     def __init__(self, indx):
         # initialise the SPI speed at one of the valid values for the rPi
         self.spiRate = speedVal[indx]
-            
+
     def readSPI(self):
         # dOut is data sent from the Pi to the AD7887, i.e. MOSI.
         # dIn is the RF power measurement result, i.e. MISO.
         try:
-            spi.open(1,0)  # bus 0, device 0
+            spi.open(1, 0)  # bus 0, device 0
             # spi.no_cs()
             spi.mode = 0  # sets clock polarity and phase
             spi.max_speed_hz = int(self.spiRate)
@@ -48,85 +53,112 @@ class Measurement():
             msg.setStandardButtons(QMessageBox.Ok)
             msg.exec_()
 
-         
-##############################################################################
 
-# functions
+class dataModel():
+    '''set up data models to bind to the GUI widgets'''
+
+    def __init__(self, modelName, tableName):
+        self.model = modelName
+        self.table = tableName
+
+    def createModel(self):
+        # add exception handling?
+
+        self.model = QSqlTableModel()
+        self.model.setTable(self.table)
+        self.model.select()
+        self.model.setEditStrategy(QSqlTableModel.OnRowChange)  # find out how it works
+        self.model.removeColumn(0)  # no need to show primary key
+
+
+##############################################################################
+# methods
+
 def openDatabase():
-    
+
     meterData = QSqlDatabase.addDatabase('QSQLITE')
-    
-    if not QtCore.QFile.exists('powerMeter.db'):
+
+    if QtCore.QFile.exists('powerMeter.db'):
+        meterData.setDatabaseName('powerMeter.db')
+        meterData.open()
+    else:
         msg = QMessageBox()
         msg.setIcon(QMessageBox.Critical)
         msg.setText('Database file missing')
         msg.setStandardButtons(QMessageBox.Ok)
         msg.exec_()
-    else:        
-        meterData.setDatabaseName('powerMeter.db')
-        meterData.open()
-    
-   # dataModels()
-    
-    # cal.close()
+    # meterData.close()
     # QSqlRelationalTableModel
-    
-def dataModels():
-    # set up data models and bind them to the table widgets of the GUI
-    
-    # add exception handling?
-  
-    attenuators = QSqlTableModel()
-    attenuators.setTable("Device")
-    attenuators.select()
-    attenuators.setEditStrategy(QSqlTableModel.OnRowChange) # find out how it works
-    ui.browseDevices.setModel(attenuators)
-    
-    powerCal = QSqlTableModel()
-    powerCal.setTable("Calibration")
-    powerCal.select()
-    powerCal.setEditStrategy(QSqlTableModel.OnRowChange) # find out how it works
-    ui.calTable.setModel(powerCal)
-    
+
+
+def widgetMap():
+    # map model to form widgets of the GUI
+
     attenUpdate = QDataWidgetMapper()
-    attenUpdate.setModel(attenuators)
-    attenUpdate.setSubmitPolicy(QDataWidgetMapper.ManualSubmit) # find out how it works
-    attenUpdate.addMapping(ui.lineEdit, 3)
-    attenUpdate.toFirst()
-    
-    
+    attenUpdate.setModel(devices.model)
+    attenUpdate.setSubmitPolicy(QDataWidgetMapper.ManualSubmit)  # find out how it works
+    attenUpdate.addMapping(ui.partID, 1)
+    attenUpdate.addMapping(ui.serialID, 2)
+    attenUpdate.addMapping(ui.Description, 3)
+    attenUpdate.addMapping(ui.powerRating, 4)
+    attenUpdate.addMapping(ui.nominalValue, 5)
+    attenUpdate.addMapping(ui.minFreq, 6)
+    attenUpdate.addMapping(ui.maxFreq, 7)
+    # attenUpdate.toFirst()
+
+    selAnt = ui.AttenIDspin.value()
+    selAnt += 1
+    attenUpdate.setCurrentIndex(selAnt)
+
+
+def selectDevice(true):
+    # record in the database which devices are in use
+
+
+
+##############################################################################
+# respond to GUI signals
 
 def measPwr():
     power = slow.readSPI()
     ui.lcd.display(power)
-    
-    ui.meterWidget.update_value(150, mouse_controlled=False) # this is how to set the value
 
-# instantiate measurements
+    ui.meterWidget.update_value(150, mouse_controlled=False)  # this is how to set the value
+
+
+##############################################################################
+# instantiate classes
 slow = Measurement(1)
+devices = dataModel("attenuators", "Device")
+calibration = dataModel("calibration", "calibration")
+
 # meter = AGW()
 
 # interfaces to the GUI
-
 app = QtWidgets.QApplication([])  # create QApplication for the GUI
 window = QtWidgets.QMainWindow()
 ui = QtPowerMeter.Ui_MainWindow()
 ui.setupUi(window)
 
 # adjust analog gauge meter
-# meter.widget.update_value(int(299))
+
 
 # Connect the form control events
 # ui.measureButton.clicked.connect(measPwr)
 
+##############################################################################
+# run the application
+
 openDatabase()
-dataModels()
+devices.createModel()
+calibration.createModel()
+ui.browseDevices.setModel(devices.model)
+ui.calTable.setModel(calibration.model)
+widgetMap()
 
 window.show()
 window.setWindowTitle('Qt Power Meter')
 app.exec_()  # run the application until the user closes it
 
-    
 
 
-        
