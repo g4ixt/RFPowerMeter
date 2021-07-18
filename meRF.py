@@ -8,7 +8,7 @@ RF power meter programme for the AD8318/AD7887 power detector sold by Matkis SV1
 # import numpy
 from PyQt5 import QtWidgets, QtCore
 from PyQt5.QtWidgets import QMessageBox, QDataWidgetMapper
-from PyQt5.QtSql import QSqlDatabase, QSqlTableModel
+from PyQt5.QtSql import QSqlDatabase, QSqlTableModel, QSqlQueryModel, QSqlRelationalTableModel
 import spidev
 # import SQLlite
 import QtPowerMeter
@@ -60,15 +60,22 @@ class dataModel():
     def __init__(self, modelName, tableName):
         self.model = modelName
         self.table = tableName
+        x = 0
 
     def createModel(self):
         # add exception handling?
 
-        self.model = QSqlTableModel()
+        self.model = QSqlTableModel() # wrong!!!
         self.model.setTable(self.table)
-        self.model.select()
         self.model.setEditStrategy(QSqlTableModel.OnRowChange)  # find out how it works
-        self.model.removeColumn(0)  # no need to show primary key
+        # self.model.removeColumn(0)  # no need to show primary key
+        self.model.select()
+
+    def createMapping(self):
+
+        self.model = QDataWidgetMapper()
+        self.model.setModel(devices.model)
+        self.model.setSubmitPolicy(QDataWidgetMapper.ManualSubmit)
 
 
 ##############################################################################
@@ -91,7 +98,7 @@ def openDatabase():
     # QSqlRelationalTableModel
 
 
-def widgetMap():
+def widgetMap():  # change to a class so it can be updated by other methods
     # map model to form widgets of the GUI
 
     attenUpdate = QDataWidgetMapper()
@@ -111,13 +118,38 @@ def widgetMap():
     attenUpdate.setCurrentIndex(selAnt)
 
 
-def selectDevice(true):
+def selectDevice():
     # record in the database which devices are in use
+    # select or highlight row in devices table and populate parameters table
 
+    if ui.useButton.isChecked():
+        # update database
+        x = 0
+
+    if ui.unuseButton.isChecked():
+        # update database
+        x = 0
+
+    if ui.importButton.isChecked():
+        # open s2p import tab
+        x = 0
+
+    if ui.editButton.clicked():
+        # activate details area and calibration values
+        devices.model.setFilter("AssetID = " + str(ui.AttenIDspin.value()))
+
+        # attenUpdate.setCurrentIndex(selRecord)
+        # devices.select()
+
+    if ui.deleteButton.isChecked():
+        # are you sure?
+        # delete from devices and parameters tables
+        x = 0
 
 
 ##############################################################################
 # respond to GUI signals
+
 
 def measPwr():
     power = slow.readSPI()
@@ -131,6 +163,7 @@ def measPwr():
 slow = Measurement(1)
 devices = dataModel("attenuators", "Device")
 calibration = dataModel("calibration", "calibration")
+details = dataModel("update", devices.model)
 
 # meter = AGW()
 
@@ -154,7 +187,15 @@ devices.createModel()
 calibration.createModel()
 ui.browseDevices.setModel(devices.model)
 ui.calTable.setModel(calibration.model)
-widgetMap()
+
+details.createMapping()
+details.model.addMapping(ui.partID, 1)
+# details.model.setCurrentIndex(ui.AttenIDspin.value())
+details.model.setCurrentIndex(0)
+# widgetMap()
+
+ui.editButton.clicked.connect(selectDevice)
+
 
 window.show()
 window.setWindowTitle('Qt Power Meter')
