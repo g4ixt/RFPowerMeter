@@ -7,8 +7,9 @@ RF power meter programme for the AD8318/AD7887 power detector sold by Matkis SV1
 # import sys
 # import numpy
 from PyQt5 import QtWidgets, QtCore
-from PyQt5.QtWidgets import QMessageBox, QDataWidgetMapper
+from PyQt5.QtWidgets import QMessageBox, QDataWidgetMapper, QFileDialog
 from PyQt5.QtSql import QSqlDatabase, QSqlTableModel, QSqlQueryModel, QSqlRelationalTableModel
+from skrf.io.touchstone import Touchstone
 import spidev
 # import SQLlite
 import QtPowerMeter
@@ -57,25 +58,33 @@ class Measurement():
 class dataModel():
     '''set up data models to bind to the GUI widgets'''
 
-    def __init__(self, modelName, tableName):
-        self.model = modelName
+    def __init__(self, tableName):
         self.table = tableName
         x = 0
 
     def createModel(self):
         # add exception handling?
 
-        self.model = QSqlTableModel() # wrong!!!
+        self.model = QSqlTableModel()
         self.model.setTable(self.table)
-        self.model.setEditStrategy(QSqlTableModel.OnRowChange)  # find out how it works
-        # self.model.removeColumn(0)  # no need to show primary key
+        self.model.setEditStrategy(QSqlTableModel.OnFieldChange)
         self.model.select()
 
-    def createMapping(self):
+    # def createRelationalModel(self, relation):
+    #     self.model = QSqlRelationalTableModel()
+    #     self.model.setTable(self.table)
+    #     self.model.setRelation(0, QSqlRelation("Device", "AssetID", "Description")
 
-        self.model = QDataWidgetMapper()
-        self.model.setModel(devices.model)
-        self.model.setSubmitPolicy(QDataWidgetMapper.ManualSubmit)
+    def addDevice(self):
+        x = 0
+       # attenuators.model.insertRow()
+        # self.model.insertRowIntoTable()  # probably wrong use, see qt doc
+
+    # def createMapping(self, mapdata):
+
+    #     self.model = QDataWidgetMapper()
+    #     self.model.setModel(mapdata)
+    #     self.model.setSubmitPolicy(QDataWidgetMapper.ManualSubmit)
 
 
 ##############################################################################
@@ -102,7 +111,7 @@ def widgetMap():  # change to a class so it can be updated by other methods
     # map model to form widgets of the GUI
 
     attenUpdate = QDataWidgetMapper()
-    attenUpdate.setModel(devices.model)
+    attenUpdate.setModel(attenuators.model)
     attenUpdate.setSubmitPolicy(QDataWidgetMapper.ManualSubmit)  # find out how it works
     attenUpdate.addMapping(ui.partID, 1)
     attenUpdate.addMapping(ui.serialID, 2)
@@ -117,34 +126,53 @@ def widgetMap():  # change to a class so it can be updated by other methods
     selAnt += 1
     attenUpdate.setCurrentIndex(selAnt)
 
+def importS2P():
+    # Import the (Touchstone) file containing attenuator/coupler/cable calibration data and extract
+    # insertion loss or coupling factors by frequency
 
-def selectDevice():
-    # record in the database which devices are in use
-    # select or highlight row in devices table and populate parameters table
+    # pop up a dialogue box for user to select the file
+    s2pFile = QFileDialog.getOpenFileName(None, 'Import s-parameter file for selected device', '', '*.s2p')
+    sParam = Touchstone(s2pFile[0])  # use skrf.io method to read file - error trapping needed
 
-    if ui.useButton.isChecked():
-        # update database
-        x = 0
+    # now extract the insertion loss or coupling factors
+    sParamData= sParam.get_sparameter_data('db')
+    freqList = sParamData['frequency']
+    insertionLossList = sParamData['S21DB']
 
-    if ui.unuseButton.isChecked():
-        # update database
-        x = 0
+    print(freqList)
+    print(insertionLossList)
 
-    if ui.importButton.isChecked():
-        # open s2p import tab
-        x = 0
+    # identify which device the user is uploading s2p data for
+    selRow = ui.browseDevices.currentIndex().row()  # get the index number of selected row
+    deviceKey = attenuators.model.record(selRow).value('AssetID')  # get the Primary Key of the selected row
 
-    if ui.editButton.clicked():
-        # activate details area and calibration values
-        devices.model.setFilter("AssetID = " + str(ui.AttenIDspin.value()))
+    print(selRow)
 
-        # attenUpdate.setCurrentIndex(selRecord)
-        # devices.select()
+    # check if there is already data for this device and delete it first
 
-    if ui.deleteButton.isChecked():
-        # are you sure?
-        # delete from devices and parameters tables
-        x = 0
+
+
+
+
+# def selectDevice():
+#     # record in the database which devices are in use
+#     # select or highlight row in devices table and populate parameters table
+
+#     if ui.importButton.isChecked():
+#         # open s2p import tab
+#         x = 0
+
+#     if ui.editButton.clicked():
+#         # activate details area and calibration values
+#         attenuators.model.setFilter("AssetID = " + str(ui.AttenIDspin.value()))
+
+#         # attenUpdate.setCurrentIndex(selRecord)
+#         # devices.select()
+
+#     if ui.deleteButton.isChecked():
+#         # are you sure?
+#         # delete from devices and parameters tables
+#         x = 0
 
 
 ##############################################################################
@@ -161,9 +189,10 @@ def measPwr():
 ##############################################################################
 # instantiate classes
 slow = Measurement(1)
-devices = dataModel("attenuators", "Device")
-calibration = dataModel("calibration", "calibration")
-details = dataModel("update", devices.model)
+attenuators = dataModel("Device")
+calibration = dataModel("calibration")
+parameters = dataModel("deviceParameters")
+# details = dataModel("update")
 
 # meter = AGW()
 
@@ -178,24 +207,37 @@ ui.setupUi(window)
 
 # Connect the form control events
 # ui.measureButton.clicked.connect(measPwr)
+# ui.addDevice.clicked.connect(attenuators.addDevice())
+ui.importS2P.clicked.connect(importS2P)
 
 ##############################################################################
 # run the application
 
 openDatabase()
-devices.createModel()
+
+attenuators.createModel()
+ui.browseDevices.setModel(attenuators.model)
+ui.browseDevices.setColumnHidden(0, True)  # hide Primary Key
+ui.browseDevices.resizeColumnToContents(3)
+
 calibration.createModel()
-ui.browseDevices.setModel(devices.model)
 ui.calTable.setModel(calibration.model)
 
-details.createMapping()
-details.model.addMapping(ui.partID, 1)
+parameters.createModel()
+ui.attenParameters.setModel(parameters.model)
+
+# details.createMapping(attenuators.model)
+# details.model.addMapping(ui.partID, 1)
 # details.model.setCurrentIndex(ui.AttenIDspin.value())
-details.model.setCurrentIndex(0)
+# details.model.setCurrentIndex(0)
 # widgetMap()
 
-ui.editButton.clicked.connect(selectDevice)
+# call functions when the GUI buttons etc are clicked
+# ui.addDevice.clicked.connect(attenuators.addDevice())
+# ui.editButton.clicked.connect(selectDevice)
+ui.meterWidget.update_value(150, mouse_controlled=False)  # this is how to set the value
 
+# attenuators.model.insertRow(3, 3)
 
 window.show()
 window.setWindowTitle('Qt Power Meter')
