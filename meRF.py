@@ -129,12 +129,12 @@ def widgetMap():  # change to a class so it can be updated by other methods
 def importS2P():
     # Import the (Touchstone) file containing attenuator/coupler/cable calibration data and extract
     # insertion loss or coupling factors by frequency
-
+    showParameters()
     # pop up a dialogue box for user to select the file
     s2pFile = QFileDialog.getOpenFileName(None, 'Import s-parameter file for selected device', '', '*.s2p')
     sParam = Touchstone(s2pFile[0])  # use skrf.io method to read file - error trapping needed
 
-    # now extract the insertion loss or coupling factors
+    # extract the insertion loss or coupling factors
     sParamData= sParam.get_sparameter_data('db')
     freqList = sParamData['frequency']
     insertionLossList = sParamData['S21DB']
@@ -150,7 +150,15 @@ def importS2P():
 
     # check if there is already data for this device and delete it first
 
+    # parameters.model.insertRow()
 
+
+def showParameters():
+    # identify which device the user has double-clicked
+    selRow = ui.browseDevices.currentIndex().row()  # get the index number of selected row
+    deviceKey = attenuators.model.record(selRow).value('AssetID')  # get the Primary Key of the selected row
+    parameters.model.setFilter('AssetID =' + str(deviceKey))
+    parameters.model.select()
 
 
 
@@ -196,6 +204,7 @@ parameters = dataModel("deviceParameters")
 
 # meter = AGW()
 
+##############################################################################
 # interfaces to the GUI
 app = QtWidgets.QApplication([])  # create QApplication for the GUI
 window = QtWidgets.QMainWindow()
@@ -209,6 +218,7 @@ ui.setupUi(window)
 # ui.measureButton.clicked.connect(measPwr)
 # ui.addDevice.clicked.connect(attenuators.addDevice())
 ui.importS2P.clicked.connect(importS2P)
+
 
 ##############################################################################
 # run the application
@@ -224,7 +234,7 @@ calibration.createModel()
 ui.calTable.setModel(calibration.model)
 
 parameters.createModel()
-ui.attenParameters.setModel(parameters.model)
+ui.deviceParameters.setModel(parameters.model)
 
 # details.createMapping(attenuators.model)
 # details.model.addMapping(ui.partID, 1)

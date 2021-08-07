@@ -27,7 +27,7 @@
      <bool>false</bool>
     </property>
     <property name="currentIndex">
-     <number>1</number>
+     <number>0</number>
     </property>
     <widget class="QWidget" name="tab">
      <attribute name="title">
@@ -451,164 +451,244 @@
      <attribute name="title">
       <string>Devices</string>
      </attribute>
-     <widget class="QTableView" name="browseDevices">
+     <widget class="QGroupBox" name="groupBox_2">
       <property name="geometry">
        <rect>
         <x>20</x>
-        <y>40</y>
-        <width>961</width>
-        <height>241</height>
-       </rect>
-      </property>
-      <property name="sizeAdjustPolicy">
-       <enum>QAbstractScrollArea::AdjustIgnored</enum>
-      </property>
-      <property name="editTriggers">
-       <set>QAbstractItemView::AnyKeyPressed|QAbstractItemView::CurrentChanged|QAbstractItemView::DoubleClicked|QAbstractItemView::EditKeyPressed</set>
-      </property>
-      <property name="alternatingRowColors">
-       <bool>true</bool>
-      </property>
-      <property name="selectionMode">
-       <enum>QAbstractItemView::SingleSelection</enum>
-      </property>
-      <property name="selectionBehavior">
-       <enum>QAbstractItemView::SelectRows</enum>
-      </property>
-      <property name="sortingEnabled">
-       <bool>true</bool>
-      </property>
-      <attribute name="verticalHeaderVisible">
-       <bool>false</bool>
-      </attribute>
-     </widget>
-     <widget class="QTableWidget" name="attenParameters">
-      <property name="geometry">
-       <rect>
-        <x>20</x>
-        <y>370</y>
-        <width>481</width>
-        <height>251</height>
-       </rect>
-      </property>
-      <property name="verticalScrollBarPolicy">
-       <enum>Qt::ScrollBarAsNeeded</enum>
-      </property>
-     </widget>
-     <widget class="QPushButton" name="addDevice">
-      <property name="geometry">
-       <rect>
-        <x>20</x>
-        <y>290</y>
-        <width>91</width>
-        <height>25</height>
-       </rect>
-      </property>
-      <property name="text">
-       <string>Add Device</string>
-      </property>
-     </widget>
-     <widget class="QPushButton" name="importS2P">
-      <property name="geometry">
-       <rect>
-        <x>130</x>
-        <y>290</y>
-        <width>91</width>
-        <height>25</height>
-       </rect>
-      </property>
-      <property name="text">
-       <string>Import S2P</string>
-      </property>
-     </widget>
-     <widget class="QPushButton" name="deleteDevice">
-      <property name="geometry">
-       <rect>
-        <x>240</x>
-        <y>290</y>
-        <width>111</width>
-        <height>25</height>
-       </rect>
-      </property>
-      <property name="text">
-       <string>Delete device</string>
-      </property>
-     </widget>
-     <widget class="QLabel" name="label">
-      <property name="geometry">
-       <rect>
-        <x>30</x>
-        <y>20</y>
-        <width>431</width>
-        <height>17</height>
-       </rect>
-      </property>
-      <property name="text">
-       <string>List of Devices that may be used - attenuators, couplers, cables</string>
-      </property>
-     </widget>
-     <widget class="QLabel" name="label_2">
-      <property name="geometry">
-       <rect>
-        <x>30</x>
         <y>350</y>
-        <width>431</width>
-        <height>17</height>
+        <width>951</width>
+        <height>291</height>
        </rect>
       </property>
-      <property name="text">
+      <property name="title">
        <string>Device parameters</string>
       </property>
+      <widget class="QTableView" name="deviceParameters">
+       <property name="geometry">
+        <rect>
+         <x>10</x>
+         <y>30</y>
+         <width>761</width>
+         <height>251</height>
+        </rect>
+       </property>
+       <property name="editTriggers">
+        <set>QAbstractItemView::AnyKeyPressed|QAbstractItemView::CurrentChanged|QAbstractItemView::DoubleClicked|QAbstractItemView::EditKeyPressed</set>
+       </property>
+       <property name="selectionMode">
+        <enum>QAbstractItemView::SingleSelection</enum>
+       </property>
+       <property name="selectionBehavior">
+        <enum>QAbstractItemView::SelectRows</enum>
+       </property>
+       <property name="gridStyle">
+        <enum>Qt::DotLine</enum>
+       </property>
+       <property name="sortingEnabled">
+        <bool>true</bool>
+       </property>
+       <attribute name="verticalHeaderVisible">
+        <bool>false</bool>
+       </attribute>
+      </widget>
+      <widget class="QPushButton" name="importS2P">
+       <property name="geometry">
+        <rect>
+         <x>810</x>
+         <y>40</y>
+         <width>91</width>
+         <height>25</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Import S2P</string>
+       </property>
+      </widget>
+      <widget class="QPushButton" name="addRow">
+       <property name="geometry">
+        <rect>
+         <x>810</x>
+         <y>80</y>
+         <width>91</width>
+         <height>25</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Add Row</string>
+       </property>
+      </widget>
+      <widget class="QPushButton" name="deleteRow">
+       <property name="geometry">
+        <rect>
+         <x>810</x>
+         <y>120</y>
+         <width>91</width>
+         <height>25</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Delete Row</string>
+       </property>
+      </widget>
+     </widget>
+     <widget class="QGroupBox" name="groupBox_4">
+      <property name="geometry">
+       <rect>
+        <x>20</x>
+        <y>10</y>
+        <width>951</width>
+        <height>321</height>
+       </rect>
+      </property>
+      <property name="title">
+       <string>Devices available to use with power sensor</string>
+      </property>
+      <widget class="QPushButton" name="deleteDevice">
+       <property name="geometry">
+        <rect>
+         <x>140</x>
+         <y>280</y>
+         <width>111</width>
+         <height>25</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Delete Device</string>
+       </property>
+      </widget>
+      <widget class="QPushButton" name="addDevice">
+       <property name="geometry">
+        <rect>
+         <x>20</x>
+         <y>280</y>
+         <width>101</width>
+         <height>25</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Add Device</string>
+       </property>
+      </widget>
+      <widget class="QTableView" name="browseDevices">
+       <property name="geometry">
+        <rect>
+         <x>10</x>
+         <y>30</y>
+         <width>931</width>
+         <height>241</height>
+        </rect>
+       </property>
+       <property name="sizeAdjustPolicy">
+        <enum>QAbstractScrollArea::AdjustIgnored</enum>
+       </property>
+       <property name="editTriggers">
+        <set>QAbstractItemView::AnyKeyPressed|QAbstractItemView::CurrentChanged|QAbstractItemView::DoubleClicked|QAbstractItemView::EditKeyPressed</set>
+       </property>
+       <property name="alternatingRowColors">
+        <bool>true</bool>
+       </property>
+       <property name="selectionMode">
+        <enum>QAbstractItemView::SingleSelection</enum>
+       </property>
+       <property name="selectionBehavior">
+        <enum>QAbstractItemView::SelectRows</enum>
+       </property>
+       <property name="sortingEnabled">
+        <bool>true</bool>
+       </property>
+       <attribute name="verticalHeaderVisible">
+        <bool>false</bool>
+       </attribute>
+      </widget>
      </widget>
     </widget>
     <widget class="QWidget" name="tab_3">
      <attribute name="title">
       <string>Calibration</string>
      </attribute>
-     <widget class="QTableView" name="calTable">
+     <widget class="QGroupBox" name="groupBox_5">
       <property name="geometry">
        <rect>
-        <x>40</x>
-        <y>50</y>
-        <width>961</width>
-        <height>192</height>
+        <x>20</x>
+        <y>10</y>
+        <width>1001</width>
+        <height>621</height>
        </rect>
       </property>
-      <property name="editTriggers">
-       <set>QAbstractItemView::AnyKeyPressed|QAbstractItemView::CurrentChanged|QAbstractItemView::DoubleClicked|QAbstractItemView::EditKeyPressed</set>
+      <property name="title">
+       <string>Sensor calibration data</string>
       </property>
-      <property name="alternatingRowColors">
-       <bool>true</bool>
-      </property>
-      <property name="sortingEnabled">
-       <bool>true</bool>
-      </property>
-     </widget>
-     <widget class="QPushButton" name="measureV1">
-      <property name="geometry">
-       <rect>
-        <x>40</x>
-        <y>270</y>
-        <width>101</width>
-        <height>25</height>
-       </rect>
-      </property>
-      <property name="text">
-       <string>Measure V1</string>
-      </property>
-     </widget>
-     <widget class="QPushButton" name="measureV2">
-      <property name="geometry">
-       <rect>
-        <x>170</x>
-        <y>270</y>
-        <width>101</width>
-        <height>25</height>
-       </rect>
-      </property>
-      <property name="text">
-       <string>Measure V2</string>
-      </property>
+      <widget class="QTableView" name="calTable">
+       <property name="geometry">
+        <rect>
+         <x>20</x>
+         <y>30</y>
+         <width>961</width>
+         <height>531</height>
+        </rect>
+       </property>
+       <property name="editTriggers">
+        <set>QAbstractItemView::AnyKeyPressed|QAbstractItemView::CurrentChanged|QAbstractItemView::DoubleClicked|QAbstractItemView::EditKeyPressed</set>
+       </property>
+       <property name="alternatingRowColors">
+        <bool>true</bool>
+       </property>
+       <property name="sortingEnabled">
+        <bool>true</bool>
+       </property>
+      </widget>
+      <widget class="QPushButton" name="measureV1">
+       <property name="geometry">
+        <rect>
+         <x>530</x>
+         <y>570</y>
+         <width>101</width>
+         <height>25</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Measure V1</string>
+       </property>
+      </widget>
+      <widget class="QPushButton" name="measureV2">
+       <property name="geometry">
+        <rect>
+         <x>650</x>
+         <y>570</y>
+         <width>101</width>
+         <height>25</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Measure V2</string>
+       </property>
+      </widget>
+      <widget class="QPushButton" name="addCalData">
+       <property name="geometry">
+        <rect>
+         <x>20</x>
+         <y>570</y>
+         <width>131</width>
+         <height>25</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Add Calibration</string>
+       </property>
+      </widget>
+      <widget class="QPushButton" name="pushButton">
+       <property name="geometry">
+        <rect>
+         <x>170</x>
+         <y>570</y>
+         <width>131</width>
+         <height>25</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Delete Calibration</string>
+       </property>
+      </widget>
      </widget>
     </widget>
    </widget>
