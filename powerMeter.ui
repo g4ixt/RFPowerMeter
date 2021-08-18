@@ -27,7 +27,7 @@
      <bool>false</bool>
     </property>
     <property name="currentIndex">
-     <number>0</number>
+     <number>2</number>
     </property>
     <widget class="QWidget" name="tab">
      <attribute name="title">
@@ -456,7 +456,7 @@
        <rect>
         <x>20</x>
         <y>350</y>
-        <width>951</width>
+        <width>1001</width>
         <height>291</height>
        </rect>
       </property>
@@ -466,14 +466,17 @@
       <widget class="QTableView" name="deviceParameters">
        <property name="geometry">
         <rect>
-         <x>10</x>
+         <x>140</x>
          <y>30</y>
-         <width>761</width>
+         <width>841</width>
          <height>251</height>
         </rect>
        </property>
        <property name="editTriggers">
-        <set>QAbstractItemView::AnyKeyPressed|QAbstractItemView::CurrentChanged|QAbstractItemView::DoubleClicked|QAbstractItemView::EditKeyPressed</set>
+        <set>QAbstractItemView::CurrentChanged|QAbstractItemView::DoubleClicked|QAbstractItemView::SelectedClicked</set>
+       </property>
+       <property name="alternatingRowColors">
+        <bool>true</bool>
        </property>
        <property name="selectionMode">
         <enum>QAbstractItemView::SingleSelection</enum>
@@ -494,7 +497,7 @@
       <widget class="QPushButton" name="importS2P">
        <property name="geometry">
         <rect>
-         <x>810</x>
+         <x>20</x>
          <y>40</y>
          <width>91</width>
          <height>25</height>
@@ -507,7 +510,7 @@
       <widget class="QPushButton" name="addRow">
        <property name="geometry">
         <rect>
-         <x>810</x>
+         <x>20</x>
          <y>80</y>
          <width>91</width>
          <height>25</height>
@@ -520,14 +523,27 @@
       <widget class="QPushButton" name="deleteRow">
        <property name="geometry">
         <rect>
-         <x>810</x>
+         <x>20</x>
+         <y>180</y>
+         <width>91</width>
+         <height>25</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Delete Data</string>
+       </property>
+      </widget>
+      <widget class="QPushButton" name="saveData">
+       <property name="geometry">
+        <rect>
+         <x>20</x>
          <y>120</y>
          <width>91</width>
          <height>25</height>
         </rect>
        </property>
        <property name="text">
-        <string>Delete Row</string>
+        <string>Save Data</string>
        </property>
       </widget>
      </widget>
@@ -536,7 +552,7 @@
        <rect>
         <x>20</x>
         <y>10</y>
-        <width>951</width>
+        <width>1001</width>
         <height>321</height>
        </rect>
       </property>
@@ -546,7 +562,7 @@
       <widget class="QPushButton" name="deleteDevice">
        <property name="geometry">
         <rect>
-         <x>140</x>
+         <x>460</x>
          <y>280</y>
          <width>111</width>
          <height>25</height>
@@ -559,22 +575,22 @@
       <widget class="QPushButton" name="addDevice">
        <property name="geometry">
         <rect>
-         <x>20</x>
+         <x>170</x>
          <y>280</y>
          <width>101</width>
          <height>25</height>
         </rect>
        </property>
        <property name="text">
-        <string>Add Device</string>
+        <string>Add Row</string>
        </property>
       </widget>
       <widget class="QTableView" name="browseDevices">
        <property name="geometry">
         <rect>
-         <x>10</x>
+         <x>20</x>
          <y>30</y>
-         <width>931</width>
+         <width>961</width>
          <height>241</height>
         </rect>
        </property>
@@ -582,7 +598,7 @@
         <enum>QAbstractScrollArea::AdjustIgnored</enum>
        </property>
        <property name="editTriggers">
-        <set>QAbstractItemView::AnyKeyPressed|QAbstractItemView::CurrentChanged|QAbstractItemView::DoubleClicked|QAbstractItemView::EditKeyPressed</set>
+        <set>QAbstractItemView::CurrentChanged|QAbstractItemView::DoubleClicked|QAbstractItemView::SelectedClicked</set>
        </property>
        <property name="alternatingRowColors">
         <bool>true</bool>
@@ -600,6 +616,32 @@
         <bool>false</bool>
        </attribute>
       </widget>
+      <widget class="QPushButton" name="showParameters">
+       <property name="geometry">
+        <rect>
+         <x>20</x>
+         <y>280</y>
+         <width>131</width>
+         <height>25</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Show parameters</string>
+       </property>
+      </widget>
+      <widget class="QPushButton" name="saveDevice">
+       <property name="geometry">
+        <rect>
+         <x>290</x>
+         <y>280</y>
+         <width>111</width>
+         <height>25</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Save Device</string>
+       </property>
+      </widget>
      </widget>
     </widget>
     <widget class="QWidget" name="tab_3">
@@ -612,7 +654,7 @@
         <x>20</x>
         <y>10</y>
         <width>1001</width>
-        <height>621</height>
+        <height>531</height>
        </rect>
       </property>
       <property name="title">
@@ -621,14 +663,14 @@
       <widget class="QTableView" name="calTable">
        <property name="geometry">
         <rect>
-         <x>20</x>
+         <x>210</x>
          <y>30</y>
-         <width>961</width>
-         <height>531</height>
+         <width>771</width>
+         <height>371</height>
         </rect>
        </property>
        <property name="editTriggers">
-        <set>QAbstractItemView::AnyKeyPressed|QAbstractItemView::CurrentChanged|QAbstractItemView::DoubleClicked|QAbstractItemView::EditKeyPressed</set>
+        <set>QAbstractItemView::CurrentChanged|QAbstractItemView::DoubleClicked|QAbstractItemView::SelectedClicked</set>
        </property>
        <property name="alternatingRowColors">
         <bool>true</bool>
@@ -636,58 +678,142 @@
        <property name="sortingEnabled">
         <bool>true</bool>
        </property>
-      </widget>
-      <widget class="QPushButton" name="measureV1">
-       <property name="geometry">
-        <rect>
-         <x>530</x>
-         <y>570</y>
-         <width>101</width>
-         <height>25</height>
-        </rect>
-       </property>
-       <property name="text">
-        <string>Measure V1</string>
-       </property>
-      </widget>
-      <widget class="QPushButton" name="measureV2">
-       <property name="geometry">
-        <rect>
-         <x>650</x>
-         <y>570</y>
-         <width>101</width>
-         <height>25</height>
-        </rect>
-       </property>
-       <property name="text">
-        <string>Measure V2</string>
-       </property>
+       <attribute name="verticalHeaderVisible">
+        <bool>false</bool>
+       </attribute>
       </widget>
       <widget class="QPushButton" name="addCalData">
        <property name="geometry">
         <rect>
-         <x>20</x>
-         <y>570</y>
-         <width>131</width>
+         <x>60</x>
+         <y>40</y>
+         <width>91</width>
          <height>25</height>
         </rect>
        </property>
        <property name="text">
-        <string>Add Calibration</string>
+        <string>Add Row</string>
        </property>
       </widget>
-      <widget class="QPushButton" name="pushButton">
+      <widget class="QPushButton" name="deleteCal">
        <property name="geometry">
         <rect>
-         <x>170</x>
-         <y>570</y>
-         <width>131</width>
+         <x>60</x>
+         <y>80</y>
+         <width>91</width>
          <height>25</height>
         </rect>
        </property>
        <property name="text">
-        <string>Delete Calibration</string>
+        <string>Delete Row</string>
        </property>
+      </widget>
+      <widget class="QGroupBox" name="groupBox_6">
+       <property name="geometry">
+        <rect>
+         <x>20</x>
+         <y>120</y>
+         <width>171</width>
+         <height>131</height>
+        </rect>
+       </property>
+       <property name="title">
+        <string>Calibrate sensor</string>
+       </property>
+       <widget class="QPushButton" name="calibrate">
+        <property name="geometry">
+         <rect>
+          <x>40</x>
+          <y>90</y>
+          <width>91</width>
+          <height>25</height>
+         </rect>
+        </property>
+        <property name="text">
+         <string>Calibrate</string>
+        </property>
+       </widget>
+       <widget class="QRadioButton" name="vHigh">
+        <property name="geometry">
+         <rect>
+          <x>10</x>
+          <y>30</y>
+          <width>71</width>
+          <height>23</height>
+         </rect>
+        </property>
+        <property name="text">
+         <string>V High</string>
+        </property>
+        <property name="checked">
+         <bool>true</bool>
+        </property>
+       </widget>
+       <widget class="QRadioButton" name="vLow">
+        <property name="geometry">
+         <rect>
+          <x>10</x>
+          <y>60</y>
+          <width>81</width>
+          <height>23</height>
+         </rect>
+        </property>
+        <property name="text">
+         <string>V Low</string>
+        </property>
+       </widget>
+      </widget>
+      <widget class="QGroupBox" name="groupBox_7">
+       <property name="geometry">
+        <rect>
+         <x>20</x>
+         <y>270</y>
+         <width>171</width>
+         <height>131</height>
+        </rect>
+       </property>
+       <property name="title">
+        <string>Cal Quality</string>
+       </property>
+       <widget class="QRadioButton" name="radioButton">
+        <property name="geometry">
+         <rect>
+          <x>10</x>
+          <y>30</y>
+          <width>106</width>
+          <height>23</height>
+         </rect>
+        </property>
+        <property name="text">
+         <string>Datasheet</string>
+        </property>
+       </widget>
+       <widget class="QRadioButton" name="radioButton_2">
+        <property name="geometry">
+         <rect>
+          <x>10</x>
+          <y>60</y>
+          <width>151</width>
+          <height>23</height>
+         </rect>
+        </property>
+        <property name="text">
+         <string>Uncalibrated meter</string>
+        </property>
+       </widget>
+       <widget class="QRadioButton" name="radioButton_3">
+        <property name="geometry">
+         <rect>
+          <x>10</x>
+          <y>90</y>
+          <width>141</width>
+          <height>23</height>
+         </rect>
+        </property>
+        <property name="text">
+         <string>calibrated meter</string>
+        </property>
+       </widget>
       </widget>
      </widget>
     </widget>
