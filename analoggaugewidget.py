@@ -75,9 +75,9 @@ except:
 
 class AnalogGaugeWidget(QWidget):
     """Fetches rows from a Bigtable.
-    Args: 
+    Args:
         none
-    
+
     """
     valueChanged = pyqtSignal(int)
 
