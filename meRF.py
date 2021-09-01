@@ -389,14 +389,16 @@ ui.meterWidget.set_total_scale_angle_size(270)
 # adjust pyqtgraph settings
 red = pyqtgraph.mkPen(color='r', width=1.0)
 blue = pyqtgraph.mkPen(color='b', width=0.5)
+magenta = pyqtgraph.mkPen(color='m', width=1.0)
 ui.graphWidget.setYRange(-80, 10)
 ui.graphWidget.setBackground('w')
 ui.graphWidget.showGrid(x=False, y=True)
 ui.graphWidget.addLine(y=10, movable=False, pen=red)
 ui.graphWidget.addLine(y=-5, movable=False, pen=blue)
 ui.graphWidget.addLine(y=-50, movable=False, pen=blue)
-ui.graphWidget.setLabel('left', 'Sensor Power dBm')
-powerCurve = ui.graphWidget.plot([], [], name='Sensor', pen=red, width=5)
+ui.graphWidget.setLabel('left', 'Sensor Power', 'dBm')
+ui.graphWidget.hideAxis('bottom')
+powerCurve = ui.graphWidget.plot([], [], name='Sensor', pen=magenta, width=5)
 
 # populate combo boxes
 ui.calQual.addItems(['Datasheet', 'Uncalibrated Meter', 'Calibrated Meter', 'Lab standard'])
