@@ -1,24 +1,27 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+
 """Created on Tue Jun  8 18:10:10 2021
 @author: Ian Jefferson G4IXT
 RF power meter programme for the AD8318/AD7887 power detector sold by Matkis SV1AFN https://www.sv1afn.com/
+
+This code makes use of a subset of the code from touchstone.py from scikit-rf, an open-source
+Python package for RF and Microwave applications.
 """
-# import sys
-# import numpy
+
 from numpy import interp, average
 from PyQt5 import QtWidgets, QtCore
 from PyQt5.QtWidgets import QMessageBox, QFileDialog
 from PyQt5.QtSql import QSqlDatabase, QSqlTableModel
-from skrf.io.touchstone import Touchstone
 import spidev
 import pyqtgraph
 from collections import deque
 
-from random import randint  # remove after testing
+# from random import randint  # remove after testing
 
 # import SQLlite
 import QtPowerMeter
+from touchstone_subset import Touchstone
 
 spi = spidev.SpiDev()
 
@@ -66,19 +69,22 @@ class Measurement():
         # dOut is data sent from the Pi to the AD7887, i.e. MOSI.
         # dIn is the RF power measurement result, i.e. MISO.
         try:
-            spi.open(1, 0)  # bus 0, device 0
+            spi.open(0, 0)  # bus 0, device 0.  MISO = GPIO9, MOSI = GPIO10, SCLK = GPIO11
             # spi.no_cs()
             spi.mode = 0  # sets clock polarity and phase
             spi.max_speed_hz = int(self.spiRate)
-            self.dIn = spi.xfer3([dOut, dOut], 2)
+            self.dIn = spi.xfer([dOut, dOut])  # AD7882 is 12 bit but Pi SPI only 8 bit so two bytes needed
             spi.close()
+
+            self.dIn[0] << 4
+
             print(dOut)
             print(self.spiRate)
             print(self.dIn)
             # self.dIn = int(self.dIn,base=2)
         except FileNotFoundError:
-            self.dIn = 1250 + randint(-30, 30)  # test, remove and un-comment popUp
-            # popUp('No SPI device found', 'OK')
+            # self.dIn = 1250 + randint(-30, 30)  # test
+            popUp('No SPI device found', 'OK')
 
     def calcPower(self):
         # use the calibration settings nearest to the measurement frequency
@@ -86,9 +92,9 @@ class Measurement():
         self.sensorPower = (self.dIn/calRecord.value('Slope')) + calRecord.value('Intercept')
         self.powerList.append(self.sensorPower)  # used to plot power graph
 
-        if self.sensorPower >= 12:
+        if self.sensorPower >= 12:  # sensor absolute maximum input level exceeded
             popUp("The sensor is no more. It has ceased to be. It is an ex-sensor. \
-                  Its maximum input level is exceeded", "No, no, it's stunned")
+                  Its maximum input level is exceeded", "Expletive!")
 
         self.powerdBm = self.sensorPower - attenuators.loss  # subtract total loss of couplers and attenuators
 
@@ -233,6 +239,7 @@ def importS2P():
 
 
 def sumLosses():
+    # sum all the losses for the devices set as 'in use'
     attenuators.tm.setFilter('inUse =' + str(1))  # set model to show only devices in use
     attenuators.updateModel()
     attenuators.loss = 0
@@ -332,11 +339,11 @@ def startMeter():
     sumLosses()
     selectCal()
     meter.powerScope()
-    meter.timer.start(ui.timebase.value())  # timer calls readMeter method every time it re-start
+    meter.timer.start(ui.rate.value())  # timer calls readMeter method every time it re-starts
 
 
 def readMeter():
-    meter.elapsed += ui.timebase.value()
+    meter.elapsed += ui.rate.value()
     meter.timebase.append(meter.elapsed)
     meter.readSPI()
     meter.calcPower()
@@ -360,7 +367,8 @@ def stopMeter():
 config = database()
 config.connect()
 
-meter = Measurement(1)
+# To do: change the spped settings so they are not hard coded
+meter = Measurement(3)
 high = Measurement(1)
 low = Measurement(1)
 
@@ -386,19 +394,19 @@ ui.meterWidget.set_enable_filled_Polygon(enable=False)
 ui.meterWidget.set_start_scale_angle(90)
 ui.meterWidget.set_total_scale_angle_size(270)
 
-# adjust pyqtgraph settings
+# adjust pyqtgraph settings for power vs time display
 red = pyqtgraph.mkPen(color='r', width=1.0)
-blue = pyqtgraph.mkPen(color='b', width=0.5)
-magenta = pyqtgraph.mkPen(color='m', width=1.0)
+blue = pyqtgraph.mkPen(color='c', width=1.0)
+yellow = pyqtgraph.mkPen(color='y', width=1.0)
 ui.graphWidget.setYRange(-80, 10)
-ui.graphWidget.setBackground('w')
+ui.graphWidget.setBackground('k')  # black
 ui.graphWidget.showGrid(x=False, y=True)
 ui.graphWidget.addLine(y=10, movable=False, pen=red)
 ui.graphWidget.addLine(y=-5, movable=False, pen=blue)
 ui.graphWidget.addLine(y=-50, movable=False, pen=blue)
 ui.graphWidget.setLabel('left', 'Sensor Power', 'dBm')
 ui.graphWidget.hideAxis('bottom')
-powerCurve = ui.graphWidget.plot([], [], name='Sensor', pen=magenta, width=5)
+powerCurve = ui.graphWidget.plot([], [], name='Sensor', pen=yellow, width=5)
 
 # populate combo boxes
 ui.calQual.addItems(['Datasheet', 'Uncalibrated Meter', 'Calibrated Meter', 'Lab standard'])
@@ -439,11 +447,12 @@ calibration.createTableModel()
 ui.calTable.setModel(calibration.tm)
 
 parameters.createTableModel()
+
 ui.deviceParameters.setModel(parameters.tm)
 ui.deviceParameters.setColumnHidden(0, True)  # hide ID field
 attenuators.showParameters
 
-meter.timer.timeout.connect(readMeter)
+meter.timer.timeout.connect(readMeter)  # A Qtimer defined in the Measurement Class init
 
 window.show()
 window.setWindowTitle('Qt Power Meter')
