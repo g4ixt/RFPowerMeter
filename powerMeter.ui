@@ -172,12 +172,12 @@
           <string>RF frequency</string>
          </property>
         </widget>
-        <widget class="QSpinBox" name="rate">
+        <widget class="QSpinBox" name="samples">
          <property name="geometry">
           <rect>
            <x>170</x>
            <y>80</y>
-           <width>130</width>
+           <width>91</width>
            <height>26</height>
           </rect>
          </property>
@@ -190,22 +190,22 @@
           <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
          </property>
          <property name="suffix">
-          <string>mS</string>
+          <string/>
          </property>
          <property name="prefix">
-          <string>~ </string>
+          <string/>
          </property>
          <property name="minimum">
-          <number>5</number>
+          <number>10</number>
          </property>
          <property name="maximum">
           <number>10000</number>
          </property>
          <property name="singleStep">
-          <number>50</number>
+          <number>10</number>
          </property>
          <property name="value">
-          <number>50</number>
+          <number>100</number>
          </property>
         </widget>
         <widget class="QLabel" name="label_2">
@@ -223,7 +223,7 @@
           </font>
          </property>
          <property name="text">
-          <string>Repeat rate</string>
+          <string>Samples/S</string>
          </property>
         </widget>
         <widget class="QLabel" name="label_11">
@@ -362,7 +362,7 @@
          <property name="geometry">
           <rect>
            <x>360</x>
-           <y>80</y>
+           <y>160</y>
            <width>83</width>
            <height>25</height>
           </rect>
@@ -375,13 +375,41 @@
          <property name="geometry">
           <rect>
            <x>360</x>
-           <y>160</y>
+           <y>200</y>
            <width>83</width>
            <height>25</height>
           </rect>
          </property>
          <property name="text">
           <string>Stop</string>
+         </property>
+        </widget>
+        <widget class="QComboBox" name="spiF">
+         <property name="geometry">
+          <rect>
+           <x>360</x>
+           <y>80</y>
+           <width>86</width>
+           <height>25</height>
+          </rect>
+         </property>
+        </widget>
+        <widget class="QLabel" name="label_3">
+         <property name="geometry">
+          <rect>
+           <x>280</x>
+           <y>80</y>
+           <width>71</width>
+           <height>30</height>
+          </rect>
+         </property>
+         <property name="font">
+          <font>
+           <pointsize>12</pointsize>
+          </font>
+         </property>
+         <property name="text">
+          <string>SPI Freq</string>
          </property>
         </widget>
        </widget>
@@ -404,7 +432,7 @@
        <widget class="QGroupBox" name="groupBox">
         <property name="geometry">
          <rect>
-          <x>540</x>
+          <x>530</x>
           <y>410</y>
           <width>501</width>
           <height>251</height>
@@ -445,7 +473,7 @@
           <string> dBm</string>
          </property>
          <property name="minimum">
-          <double>-90.000000000000000</double>
+          <double>-70.000000000000000</double>
          </property>
          <property name="maximum">
           <double>20.000000000000000</double>
@@ -454,7 +482,7 @@
           <double>0.010000000000000</double>
          </property>
          <property name="value">
-          <double>-90.000000000000000</double>
+          <double>-70.000000000000000</double>
          </property>
         </widget>
         <widget class="QLabel" name="label_9">
@@ -502,7 +530,7 @@
           <string> dBm</string>
          </property>
          <property name="minimum">
-          <double>-90.000000000000000</double>
+          <double>-70.000000000000000</double>
          </property>
          <property name="maximum">
           <double>60.000000000000000</double>
@@ -511,7 +539,7 @@
           <double>0.010000000000000</double>
          </property>
          <property name="value">
-          <double>-90.000000000000000</double>
+          <double>-70.000000000000000</double>
          </property>
         </widget>
         <widget class="QDoubleSpinBox" name="powerWatts">
@@ -622,7 +650,7 @@
           <string>Attenuation factor</string>
          </property>
         </widget>
-        <widget class="QLabel" name="label_3">
+        <widget class="QLabel" name="warning">
          <property name="geometry">
           <rect>
            <x>350</x>
@@ -683,6 +711,48 @@
          </property>
          <property name="text">
           <string>Calibration type</string>
+         </property>
+        </widget>
+        <widget class="QLabel" name="spiNoise">
+         <property name="geometry">
+          <rect>
+           <x>20</x>
+           <y>200</y>
+           <width>161</width>
+           <height>17</height>
+          </rect>
+         </property>
+         <property name="font">
+          <font>
+           <pointsize>12</pointsize>
+          </font>
+         </property>
+         <property name="styleSheet">
+          <string notr="true">color: rgb(255, 0, 0);</string>
+         </property>
+         <property name="text">
+          <string/>
+         </property>
+        </widget>
+        <widget class="QLabel" name="sensorOverload">
+         <property name="geometry">
+          <rect>
+           <x>220</x>
+           <y>200</y>
+           <width>261</width>
+           <height>20</height>
+          </rect>
+         </property>
+         <property name="font">
+          <font>
+           <pointsize>12</pointsize>
+          </font>
+         </property>
+         <property name="styleSheet">
+          <string notr="true">color: rgb(255, 0, 0);</string>
+         </property>
+         <property name="text">
+          <string/>
          </property>
         </widget>
        </widget>
@@ -898,7 +968,7 @@
           <x>10</x>
           <y>10</y>
           <width>1011</width>
-          <height>531</height>
+          <height>641</height>
          </rect>
         </property>
         <property name="title">
@@ -907,10 +977,10 @@
         <widget class="QTableView" name="calTable">
          <property name="geometry">
           <rect>
-           <x>140</x>
+           <x>160</x>
            <y>30</y>
-           <width>851</width>
-           <height>371</height>
+           <width>831</width>
+           <height>291</height>
           </rect>
          </property>
          <property name="editTriggers">
@@ -918,6 +988,12 @@
          </property>
          <property name="alternatingRowColors">
           <bool>true</bool>
+         </property>
+         <property name="selectionMode">
+          <enum>QAbstractItemView::SingleSelection</enum>
+         </property>
+         <property name="selectionBehavior">
+          <enum>QAbstractItemView::SelectRows</enum>
          </property>
          <property name="sortingEnabled">
           <bool>true</bool>
@@ -957,18 +1033,18 @@
           <rect>
            <x>10</x>
            <y>130</y>
-           <width>111</width>
-           <height>221</height>
+           <width>131</width>
+           <height>191</height>
           </rect>
          </property>
          <property name="title">
-          <string>Calibrate sensor</string>
+          <string>Calibration</string>
          </property>
          <widget class="QPushButton" name="measure">
           <property name="geometry">
            <rect>
-            <x>10</x>
-            <y>140</y>
+            <x>20</x>
+            <y>100</y>
             <width>91</width>
             <height>25</height>
            </rect>
@@ -980,8 +1056,8 @@
          <widget class="QRadioButton" name="vHigh">
           <property name="geometry">
            <rect>
-            <x>10</x>
-            <y>70</y>
+            <x>20</x>
+            <y>30</y>
             <width>101</width>
             <height>23</height>
            </rect>
@@ -996,8 +1072,8 @@
          <widget class="QRadioButton" name="vLow">
           <property name="geometry">
            <rect>
-            <x>10</x>
-            <y>100</y>
+            <x>20</x>
+            <y>60</y>
             <width>91</width>
             <height>23</height>
            </rect>
@@ -1006,30 +1082,11 @@
            <string>Low Code</string>
           </property>
          </widget>
-         <widget class="QComboBox" name="calQual">
-          <property name="geometry">
-           <rect>
-            <x>10</x>
-            <y>30</y>
-            <width>91</width>
-            <height>25</height>
-           </rect>
-          </property>
-          <property name="mouseTracking">
-           <bool>false</bool>
-          </property>
-          <property name="focusPolicy">
-           <enum>Qt::WheelFocus</enum>
-          </property>
-          <property name="toolTip">
-           <string extracomment="Select calibration quality level"/>
-          </property>
-         </widget>
          <widget class="QPushButton" name="calibrate">
           <property name="geometry">
            <rect>
-            <x>10</x>
-            <y>180</y>
+            <x>20</x>
+            <y>140</y>
             <width>91</width>
             <height>25</height>
            </rect>

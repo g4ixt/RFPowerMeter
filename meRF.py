@@ -9,6 +9,7 @@ This code makes use of a subset of the code from touchstone.py from scikit-rf, a
 Python package for RF and Microwave applications.
 """
 
+# import sys
 from numpy import interp, average
 from PyQt5 import QtWidgets, QtCore
 from PyQt5.QtWidgets import QMessageBox, QFileDialog
@@ -17,19 +18,15 @@ import spidev
 import pyqtgraph
 from collections import deque
 
-# from random import randint  # remove after testing
-
-# import SQLlite
 import QtPowerMeter
 from touchstone_subset import Touchstone
 
 spi = spidev.SpiDev()
 
-# the spi max_speed_hz must be chosen from a value accepted by the driver : Pi does not work above 31.2e6
-speedVal = [7.629e3, 15.2e3, 30.5e3, 61e3, 122e3, 244e3, 488e3,
-            976e3, 1.953e6, 3.9e6, 7.8e6, 15.6e6, 31.2e6, 62.5e6, 125e6]
+# the spi max_speed_hz must be chosen from a value accepted by the driver : Pi up to 31.2e6 but AD7887 only up to 1MHz
+speedVal = [7.629e3, 15.2e3, 30.5e3, 61e3, 122e3, 244e3, 488e3, 976e3]
 
-# AD7887 ADC control register setting for external reference, single channel, always powered up
+# AD7887 ADC control register setting for external reference, single channel, mode 3
 dOut = 0b00100001
 
 
@@ -37,6 +34,7 @@ dOut = 0b00100001
 # classes
 
 class database():
+    '''calibration and attenuator/coupler data are stored in a SQLite database'''
 
     def connect(self):
 
@@ -56,35 +54,23 @@ class database():
 class Measurement():
     '''Read AD8318 RF Power value via AD7887 ADC using the Serial Peripheral Interface (SPI)'''
 
-    def __init__(self, indx):
-        # initialise the SPI speed at one of the valid values for the rPi
-        self.spiRate = speedVal[indx]
+    def __init__(self):
         self.dIn = 0
-        self.sensorPower = -90
-        self.powerdBm = -90
+        self.sensorPower = -70
+        self.powerdBm = -70
         self.powerW = 1
         self.timer = QtCore.QTimer()
 
     def readSPI(self):
         # dOut is data sent from the Pi to the AD7887, i.e. MOSI.
         # dIn is the RF power measurement result, i.e. MISO.
-        try:
-            spi.open(0, 0)  # bus 0, device 0.  MISO = GPIO9, MOSI = GPIO10, SCLK = GPIO11
-            # spi.no_cs()
-            spi.mode = 0  # sets clock polarity and phase
-            spi.max_speed_hz = int(self.spiRate)
-            self.dIn = spi.xfer([dOut, dOut])  # AD7882 is 12 bit but Pi SPI only 8 bit so two bytes needed
-            spi.close()
+        dIn = spi.xfer([dOut, dOut])  # AD7882 is 12 bit but Pi SPI only 8 bit so two bytes needed
+        ui.spiNoise.setText('')
 
-            self.dIn[0] << 4
+        if dIn[0] > 13:  # anything > 13 is due to noise or spi errors
+            ui.spiNoise.setText('SPI error detected')
 
-            print(dOut)
-            print(self.spiRate)
-            print(self.dIn)
-            # self.dIn = int(self.dIn,base=2)
-        except FileNotFoundError:
-            # self.dIn = 1250 + randint(-30, 30)  # test
-            popUp('No SPI device found', 'OK')
+        self.dIn = (dIn[0] << 8) + dIn[1]  # shift first byte to be MSB of a 12-bit word and add second byte
 
     def calcPower(self):
         # use the calibration settings nearest to the measurement frequency
@@ -92,9 +78,8 @@ class Measurement():
         self.sensorPower = (self.dIn/calRecord.value('Slope')) + calRecord.value('Intercept')
         self.powerList.append(self.sensorPower)  # used to plot power graph
 
-        if self.sensorPower >= 12:  # sensor absolute maximum input level exceeded
-            popUp("The sensor is no more. It has ceased to be. It is an ex-sensor. \
-                  Its maximum input level is exceeded", "Expletive!")
+        if self.sensorPower >= 12 and self.dIn != 0:  # sensor absolute maximum input level exceeded
+            ui.sensorOverload.setText('Sensor rating exceeded')
 
         self.powerdBm = self.sensorPower - attenuators.loss  # subtract total loss of couplers and attenuators
 
@@ -212,6 +197,7 @@ def exit_handler():
     del parameters.tm
     del calibration.tm
     config.db.close()
+    spi.close()
     print('Closed')
 
 
@@ -243,6 +229,9 @@ def sumLosses():
     attenuators.tm.setFilter('inUse =' + str(1))  # set model to show only devices in use
     attenuators.updateModel()
     attenuators.loss = 0
+
+    # future - check for devices being used out of their freq range
+
     for i in range(attenuators.tm.rowCount()):
         freqList = []
         lossList = []
@@ -312,38 +301,75 @@ def deleteParameter():
     parameters.deleteRow(parameters.row, 1)
 
 
+def calibrate():
+    calibration.row = ui.calTable.currentIndex().row()  # set the row index for the currently selected calibration
+    record = calibration.tm.record(calibration.row)
+    slope = (record.value('High Code')-record.value('Low Code'))/((record.value('Cal High dBm')-record.value('Cal Low dBm')))
+    intercept = record.value('Cal High dBm')-(record.value('High Code')/slope)
+    record.setValue('Slope', slope)
+    record.setValue('Intercept', intercept)
+    calibration.tm.setRecord(calibration.row, record)  # append the contents of 'record' to the table via the model
+    calibration.updateModel()
+
+
 def deleteCal():
     calibration.row = ui.calTable.currentIndex().row()  # set the row index for the currently selected calibration
     calibration.deleteRow(calibration.row, 1)
 
 
 def updateCal():
-    calibration.row = ui.calTable.currentIndex().row()  # set the row index for the currently selected calibration
-    record = calibration.tm.record(calibration.row)
-    record.setValue('CalQuality', ui.calQual.currentText())
-    if ui.vHigh.isChecked():
-        high.readSPI()
-        record.setValue('Sensor vHigh', high.dIn)
-    if ui.vLow.isChecked():
-        low.readSPI()
-        record.setValue('Sensor vLow', low.dIn)
-    calibration.tm.setRecord(calibration.row, record)  # append the contents of 'record' to the table via the model
-    calibration.updateModel()
-    # if high and low are both now populated IN THE Model record, calculate slope and intercept.
+    try:
+        openSPI()
+    except FileNotFoundError:
+        popUp('No SPI device found', 'OK')
+    else:
+        calibration.row = ui.calTable.currentIndex().row()  # set the row index for the currently selected calibration
+        record = calibration.tm.record(calibration.row)
+        # record.setValue('CalQuality', ui.calQual.currentText())
+        if ui.vHigh.isChecked():
+            high.readSPI()
+            record.setValue('Sensor vHigh', high.dIn)
+        if ui.vLow.isChecked():
+            low.readSPI()
+            record.setValue('Sensor vLow', low.dIn)
+
+        calibration.tm.setRecord(calibration.row, record)  # append the contents of 'record' to the table via the model
+        calibration.updateModel()
+        # if high and low are both now populated IN THE Model record, calculate slope and intercept.
+        spi.close()
+
+
+def openSPI():
+    # set up spi bus
+    spi.open(0, 0)  # bus 0, device 0.  MISO = GPIO9, MOSI = GPIO10, SCLK = GPIO11
+    spi.no_cs = True  # Clock select hardware jumper in use
+    spi.mode = 3  # set clock polarity and phase to 0b11
+    kHz = ui.spiF.currentIndex()
+    spi.max_speed_hz = int(speedVal[kHz])
 
 
 def startMeter():
-    ui.browseDevices.setEnabled(False)
-    ui.deviceParameters.setEnabled(False)
-    ui.calTable.setEnabled(False)
-    sumLosses()
-    selectCal()
-    meter.powerScope()
-    meter.timer.start(ui.rate.value())  # timer calls readMeter method every time it re-starts
+    try:
+        openSPI()
+    except FileNotFoundError:
+        popUp('No SPI device found', 'OK')
+    else:
+        # disable settings buttons and start measuring if spi device present
+        ui.sensorOverload.setText('')
+        ui.browseDevices.setEnabled(False)
+        ui.deviceParameters.setEnabled(False)
+        ui.calTable.setEnabled(False)
+        sumLosses()
+        selectCal()
+        meter.powerScope()
+        interval = 1000/ui.samples.value()
+        meter.timer.start(interval)  # timer calls readMeter method every time it re-starts
 
 
 def readMeter():
-    meter.elapsed += ui.rate.value()
+    # meter.elapsed += 1/ui.samples.value()
+    meter.elapsed += 1
+    print(meter.elapsed)
     meter.timebase.append(meter.elapsed)
     meter.readSPI()
     meter.calcPower()
@@ -359,6 +385,7 @@ def stopMeter():
     attenuators.updateModel()
     parameters.tm.setFilter('')
     parameters.updateModel()
+    spi.close()
 
 
 ##############################################################################
@@ -368,9 +395,9 @@ config = database()
 config.connect()
 
 # To do: change the spped settings so they are not hard coded
-meter = Measurement(3)
-high = Measurement(1)
-low = Measurement(1)
+meter = Measurement()
+high = Measurement()
+low = Measurement()
 
 attenuators = modelView("Device")
 calibration = modelView("calibration")
@@ -385,7 +412,6 @@ ui = QtPowerMeter.Ui_MainWindow()
 ui.setupUi(window)
 
 # adjust analog gauge meter
-# ui.meterWidget.update_value(1, mouse_controlled=False)  # this is how to set the value
 ui.meterWidget.set_MaxValue(10)
 ui.meterWidget.set_enable_CenterPoint(enable=False)
 ui.meterWidget.set_enable_barGraph(enable=False)
@@ -398,23 +424,27 @@ ui.meterWidget.set_total_scale_angle_size(270)
 red = pyqtgraph.mkPen(color='r', width=1.0)
 blue = pyqtgraph.mkPen(color='c', width=1.0)
 yellow = pyqtgraph.mkPen(color='y', width=1.0)
-ui.graphWidget.setYRange(-80, 10)
+ui.graphWidget.setYRange(-70, 10)
 ui.graphWidget.setBackground('k')  # black
-ui.graphWidget.showGrid(x=False, y=True)
+ui.graphWidget.showGrid(x=True, y=True)
 ui.graphWidget.addLine(y=10, movable=False, pen=red)
 ui.graphWidget.addLine(y=-5, movable=False, pen=blue)
 ui.graphWidget.addLine(y=-50, movable=False, pen=blue)
 ui.graphWidget.setLabel('left', 'Sensor Power', 'dBm')
-ui.graphWidget.hideAxis('bottom')
+# ui.graphWidget.hideAxis('bottom')
 powerCurve = ui.graphWidget.plot([], [], name='Sensor', pen=yellow, width=5)
 
 # populate combo boxes
-ui.calQual.addItems(['Datasheet', 'Uncalibrated Meter', 'Calibrated Meter', 'Lab standard'])
-ui.calQual.itemText(0)
-ui.Scale.addItems(['Auto'])  # future addition of manual settings
+# ui.calQual.addItems(['Datasheet', 'Uncalibrated Meter', 'Calibrated Meter', 'Lab standard'])
+# ui.calQual.itemText(0)
+
+ui.spiF.addItems(['7.629', '15.2', '30.5', '61', '122', '244', '488', '976'])  # list of permitted spi freq in kHz
+ui.spiF.itemText(0)
+
+ui.Scale.addItems(['Auto'])  # future - addition of manual settings
 ui.Scale.itemText(0)
 
-# Connect the signals from buttons
+# Connect signals from buttons
 
 # attenuators, couplers and cables
 ui.addDevice.clicked.connect(attenuators.addRow)
@@ -428,6 +458,7 @@ ui.deleteRow.clicked.connect(deleteParameter)
 ui.addCalData.clicked.connect(calibration.addRow)
 ui.deleteCal.clicked.connect(deleteCal)
 ui.measure.clicked.connect(updateCal)
+ui.calibrate.clicked.connect(calibrate)
 
 # start and stop
 ui.runButton.clicked.connect(startMeter)
