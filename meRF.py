@@ -77,14 +77,19 @@ class Measurement():
         calRecord = calibration.tm.record(calibration.id)
         self.sensorPower = (self.dIn/calRecord.value('Slope')) + calRecord.value('Intercept')
         self.powerList.append(self.sensorPower)  # used to plot power graph
+        # update moving pyqtgraph
+        # slows measurements down by a factor of 20 at highest spi speed
+        powerCurve.setData(self.timebase, self.powerList)
 
         if self.sensorPower >= 12 and self.dIn != 0:  # sensor absolute maximum input level exceeded
             ui.sensorOverload.setText('Sensor rating exceeded')
 
         self.powerdBm = self.sensorPower - attenuators.loss  # subtract total loss of couplers and attenuators
 
+
     def updateGUI(self):
         # update the GUI values in dBm.  Probably should separate into smaller blocks
+        # slows measurements down by a factor of 5 at highest spi speed
         ui.sensorPower.setValue(int(self.sensorPower))
         ui.inputPower.setValue(self.powerdBm)
 
@@ -111,8 +116,6 @@ class Measurement():
         ui.meterWidget.update_value(damping, mouse_controlled=False)
         ui.powerWatts.setValue(self.powerW)
 
-        # update moving pyqtgraph
-        powerCurve.setData(self.timebase, self.powerList)
 
     def powerScope(self):
         length = ui.dequeLength.value()
@@ -328,10 +331,10 @@ def updateCal():
         # record.setValue('CalQuality', ui.calQual.currentText())
         if ui.vHigh.isChecked():
             high.readSPI()
-            record.setValue('Sensor vHigh', high.dIn)
+            record.setValue('High Code', high.dIn)
         if ui.vLow.isChecked():
             low.readSPI()
-            record.setValue('Sensor vLow', low.dIn)
+            record.setValue('Low Code', low.dIn)
 
         calibration.tm.setRecord(calibration.row, record)  # append the contents of 'record' to the table via the model
         calibration.updateModel()
@@ -344,8 +347,8 @@ def openSPI():
     spi.open(0, 0)  # bus 0, device 0.  MISO = GPIO9, MOSI = GPIO10, SCLK = GPIO11
     spi.no_cs = True  # Clock select hardware jumper in use
     spi.mode = 3  # set clock polarity and phase to 0b11
-    kHz = ui.spiF.currentIndex()
-    spi.max_speed_hz = int(speedVal[kHz])
+    kHz = ui.spiF.currentIndex()  # index of selected combo box value
+    spi.max_speed_hz = int(speedVal[kHz])  # set spi freq in Hz to the permitted value from the list
 
 
 def startMeter():
@@ -362,15 +365,15 @@ def startMeter():
         sumLosses()
         selectCal()
         meter.powerScope()
-        interval = 1000/ui.samples.value()
-        meter.timer.start(interval)  # timer calls readMeter method every time it re-starts
+        # interval = 1000/ui.samples.value()
+        meter.timer.start()  # timer calls readMeter method every time it re-starts
 
 
 def readMeter():
     # meter.elapsed += 1/ui.samples.value()
     meter.elapsed += 1
-    print(meter.elapsed)
     meter.timebase.append(meter.elapsed)
+    print(meter.elapsed)
     meter.readSPI()
     meter.calcPower()
     meter.updateGUI()
@@ -440,6 +443,7 @@ powerCurve = ui.graphWidget.plot([], [], name='Sensor', pen=yellow, width=5)
 
 ui.spiF.addItems(['7.629', '15.2', '30.5', '61', '122', '244', '488', '976'])  # list of permitted spi freq in kHz
 ui.spiF.itemText(0)
+ui.spiF.setCurrentIndex(7)
 
 ui.Scale.addItems(['Auto'])  # future - addition of manual settings
 ui.Scale.itemText(0)
