@@ -9,25 +9,24 @@ This code makes use of a subset of the code from touchstone.py from scikit-rf, a
 Python package for RF and Microwave applications.
 """
 
-# import sys
-from numpy import interp, average
+import numpy as np
 from PyQt5 import QtWidgets, QtCore
 from PyQt5.QtWidgets import QMessageBox, QFileDialog
 from PyQt5.QtSql import QSqlDatabase, QSqlTableModel
 import spidev
 import pyqtgraph
-from collections import deque
 
 import QtPowerMeter
 from touchstone_subset import Touchstone
 
 spi = spidev.SpiDev()
 
-# the spi max_speed_hz must be chosen from a value accepted by the driver : Pi up to 31.2e6 but AD7887 only up to 1MHz
-speedVal = [7.629e3, 15.2e3, 30.5e3, 61e3, 122e3, 244e3, 488e3, 976e3]
-
 # AD7887 ADC control register setting for external reference, single channel, mode 3
 dOut = 0b00100001
+
+# Meter scale values
+Units = ['pW', 'nW', 'uW', 'mW', 'W', 'kW']
+dBm = [-90, -60, -30, 0, 30, 60]
 
 
 ##############################################################################
@@ -60,6 +59,7 @@ class Measurement():
         self.powerdBm = -70
         self.powerW = 1
         self.timer = QtCore.QTimer()
+        self.averages = 20
 
     def readSPI(self):
         # dOut is data sent from the Pi to the AD7887, i.e. MOSI.
@@ -73,56 +73,51 @@ class Measurement():
         self.dIn = (dIn[0] << 8) + dIn[1]  # shift first byte to be MSB of a 12-bit word and add second byte
 
     def calcPower(self):
-        # use the calibration settings nearest to the measurement frequency
+        # uses the calibration settings nearest to the measurement frequency
         calRecord = calibration.tm.record(calibration.id)
         self.sensorPower = (self.dIn/calRecord.value('Slope')) + calRecord.value('Intercept')
-        self.powerList.append(self.sensorPower)  # used to plot power graph
-        # update moving pyqtgraph
-        # slows measurements down by a factor of 20 at highest spi speed
-        powerCurve.setData(self.timebase, self.powerList)
+        self.powerList = np.roll(self.powerList, 1)
+        self.powerList[0] = self.sensorPower  # used to plot power graph
 
         if self.sensorPower >= 12 and self.dIn != 0:  # sensor absolute maximum input level exceeded
             ui.sensorOverload.setText('Sensor rating exceeded')
 
-        self.powerdBm = self.sensorPower - attenuators.loss  # subtract total loss of couplers and attenuators
-
+        self.averagePower = np.average(self.powerList[0:self.averages:1])
+        self.powerdBm = self.averagePower - attenuators.loss  # subtract total loss of couplers and attenuators
 
     def updateGUI(self):
-        # update the GUI values in dBm.  Probably should separate into smaller blocks
-        # slows measurements down by a factor of 5 at highest spi speed
-        ui.sensorPower.setValue(int(self.sensorPower))
+        # uses the average powers apart from the moving graph, which uses the individual measurements
+        ui.sensorPower.setValue(self.averagePower)
         ui.inputPower.setValue(self.powerdBm)
 
         # update power meter range and label
-        Watts = ['pW', 'nW', 'uW', 'mW', 'W', 'kW']
-        dBm = [-90, -60, -30, 0, 30, 60]
         meterRange = next(x for x, val in enumerate(dBm) if val > self.powerdBm)
         if meterRange > 0:
             meterRange += -1
-        ui.powerUnit.setText(str(Watts[meterRange]))
-        ui.powerWatts.setSuffix(str(Watts[meterRange]))
+        ui.powerUnit.setText(str(Units[meterRange]))
+        ui.powerWatts.setSuffix(str(Units[meterRange]))
 
-        # convert dBm to Watts and update analogue meter
+        # convert dBm to Watts and update analogue meter scale
         meter_dB = self.powerdBm - dBm[meterRange]  # ref to the max value for each range, i.e. 1000 units
-        self.powerW = 10 ** (meter_dB / 10)  # dB to Watts
+        self.powerW = 10 ** (meter_dB / 10)  # dB to 'unit' Watts
         if ui.Scale.currentText() == 'Auto':  # future manual setting method to add
             ui.meterWidget.set_MaxValue(1000)
             if self.powerW <= 10:
                 ui.meterWidget.set_MaxValue(10)
             if self.powerW >= 10 and self.powerW <= 100:
                 ui.meterWidget.set_MaxValue(100)
-        self.damping.append(self.powerW)
-        damping = average(self.damping)
-        ui.meterWidget.update_value(damping, mouse_controlled=False)
+
+        # update the analog gauge widget
+        ui.meterWidget.update_value(self.powerW, mouse_controlled=False)
         ui.powerWatts.setValue(self.powerW)
 
+        # update the moving pyqtgraph
+        powerCurve.setData(self.timebase, self.powerList)
 
     def powerScope(self):
         length = ui.dequeLength.value()
-        damping = ui.dampingBox.value()
-        self.timebase = deque(maxlen=length)
-        self.powerList = deque(maxlen=length)
-        self.damping = deque(maxlen=damping)
+        self.timebase = np.zeros(length)
+        self.powerList = np.zeros(length)
         self.elapsed = 0
 
 
@@ -251,7 +246,8 @@ def sumLosses():
             lossList.append(parameterRecord.value('Value dB'))
 
         # interpolate device loss at set freq from the known parameters and sum them
-        attenuators.loss += interp(ui.freqBox.value(), freqList, lossList)
+        # attenuators.loss += interp(ui.freqBox.value(), freqList, lossList)
+        attenuators.loss += np.interp(ui.freqBox.value(), freqList, lossList)
     ui.totalLoss.setValue(-attenuators.loss)
 
 
@@ -347,8 +343,10 @@ def openSPI():
     spi.open(0, 0)  # bus 0, device 0.  MISO = GPIO9, MOSI = GPIO10, SCLK = GPIO11
     spi.no_cs = True  # Clock select hardware jumper in use
     spi.mode = 3  # set clock polarity and phase to 0b11
-    kHz = ui.spiF.currentIndex()  # index of selected combo box value
-    spi.max_speed_hz = int(speedVal[kHz])  # set spi freq in Hz to the permitted value from the list
+
+    # spi max_speed_hz must be integer value accepted by the driver : Pi goes up to 31.2e6 but AD7887 only up to 1MHz
+    # valid values are 7.629e3, 15.2e3, 30.5e3, 61e3, 122e3, 244e3, 488e3, 976e3
+    spi.max_speed_hz = 976000
 
 
 def startMeter():
@@ -364,19 +362,20 @@ def startMeter():
         ui.calTable.setEnabled(False)
         sumLosses()
         selectCal()
+        meter.averages = ui.averaging.value()
         meter.powerScope()
-        # interval = 1000/ui.samples.value()
         meter.timer.start()  # timer calls readMeter method every time it re-starts
 
 
 def readMeter():
-    # meter.elapsed += 1/ui.samples.value()
     meter.elapsed += 1
-    meter.timebase.append(meter.elapsed)
-    print(meter.elapsed)
+    meter.timebase = np.roll(meter.timebase, 1)
+    meter.timebase[0] = meter.elapsed
     meter.readSPI()
     meter.calcPower()
-    meter.updateGUI()
+    if meter.elapsed/meter.averages == int(meter.elapsed/meter.averages):
+        # GUI updates slow measurements down significantly so only do them when needed
+        meter.updateGUI()
 
 
 def stopMeter():
@@ -434,17 +433,10 @@ ui.graphWidget.addLine(y=10, movable=False, pen=red)
 ui.graphWidget.addLine(y=-5, movable=False, pen=blue)
 ui.graphWidget.addLine(y=-50, movable=False, pen=blue)
 ui.graphWidget.setLabel('left', 'Sensor Power', 'dBm')
-# ui.graphWidget.hideAxis('bottom')
-powerCurve = ui.graphWidget.plot([], [], name='Sensor', pen=yellow, width=5)
+ui.graphWidget.setLabel('bottom', 'Measurement Number')
+powerCurve = ui.graphWidget.plot([], [], name='Sensor', pen=yellow, width=1)
 
 # populate combo boxes
-# ui.calQual.addItems(['Datasheet', 'Uncalibrated Meter', 'Calibrated Meter', 'Lab standard'])
-# ui.calQual.itemText(0)
-
-ui.spiF.addItems(['7.629', '15.2', '30.5', '61', '122', '244', '488', '976'])  # list of permitted spi freq in kHz
-ui.spiF.itemText(0)
-ui.spiF.setCurrentIndex(7)
-
 ui.Scale.addItems(['Auto'])  # future - addition of manual settings
 ui.Scale.itemText(0)
 

@@ -172,60 +172,6 @@
           <string>RF frequency</string>
          </property>
         </widget>
-        <widget class="QSpinBox" name="samples">
-         <property name="geometry">
-          <rect>
-           <x>170</x>
-           <y>80</y>
-           <width>91</width>
-           <height>26</height>
-          </rect>
-         </property>
-         <property name="font">
-          <font>
-           <pointsize>12</pointsize>
-          </font>
-         </property>
-         <property name="alignment">
-          <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-         </property>
-         <property name="suffix">
-          <string/>
-         </property>
-         <property name="prefix">
-          <string/>
-         </property>
-         <property name="minimum">
-          <number>10</number>
-         </property>
-         <property name="maximum">
-          <number>10000</number>
-         </property>
-         <property name="singleStep">
-          <number>10</number>
-         </property>
-         <property name="value">
-          <number>100</number>
-         </property>
-        </widget>
-        <widget class="QLabel" name="label_2">
-         <property name="geometry">
-          <rect>
-           <x>20</x>
-           <y>80</y>
-           <width>121</width>
-           <height>30</height>
-          </rect>
-         </property>
-         <property name="font">
-          <font>
-           <pointsize>12</pointsize>
-          </font>
-         </property>
-         <property name="text">
-          <string>Samples/S</string>
-         </property>
-        </widget>
         <widget class="QLabel" name="label_11">
          <property name="geometry">
           <rect>
@@ -244,7 +190,7 @@
           <string>Scale auto/man</string>
          </property>
         </widget>
-        <widget class="QSpinBox" name="dampingBox">
+        <widget class="QSpinBox" name="averaging">
          <property name="geometry">
           <rect>
            <x>170</x>
@@ -268,13 +214,16 @@
           <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
          </property>
          <property name="minimum">
-          <number>1</number>
+          <number>10</number>
          </property>
          <property name="maximum">
           <number>1000</number>
          </property>
+         <property name="singleStep">
+          <number>10</number>
+         </property>
          <property name="value">
-          <number>20</number>
+          <number>100</number>
          </property>
         </widget>
         <widget class="QLabel" name="label_4">
@@ -328,16 +277,16 @@
           <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
          </property>
          <property name="minimum">
-          <number>5</number>
+          <number>100</number>
          </property>
          <property name="maximum">
-          <number>5000</number>
+          <number>100000</number>
          </property>
          <property name="singleStep">
           <number>100</number>
          </property>
          <property name="value">
-          <number>100</number>
+          <number>1000</number>
          </property>
         </widget>
         <widget class="QLabel" name="label_15">
@@ -355,7 +304,7 @@
           </font>
          </property>
          <property name="text">
-          <string>Meter damping</string>
+          <string>Meter averaging</string>
          </property>
         </widget>
         <widget class="QPushButton" name="runButton">
@@ -382,34 +331,6 @@
          </property>
          <property name="text">
           <string>Stop</string>
-         </property>
-        </widget>
-        <widget class="QComboBox" name="spiF">
-         <property name="geometry">
-          <rect>
-           <x>360</x>
-           <y>80</y>
-           <width>86</width>
-           <height>25</height>
-          </rect>
-         </property>
-        </widget>
-        <widget class="QLabel" name="label_3">
-         <property name="geometry">
-          <rect>
-           <x>280</x>
-           <y>80</y>
-           <width>71</width>
-           <height>30</height>
-          </rect>
-         </property>
-         <property name="font">
-          <font>
-           <pointsize>12</pointsize>
-          </font>
-         </property>
-         <property name="text">
-          <string>SPI Freq</string>
          </property>
         </widget>
        </widget>
@@ -980,7 +901,7 @@
            <x>160</x>
            <y>30</y>
            <width>831</width>
-           <height>291</height>
+           <height>591</height>
           </rect>
          </property>
          <property name="editTriggers">
