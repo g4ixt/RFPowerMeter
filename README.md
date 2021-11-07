@@ -16,6 +16,7 @@ A simplified subset of the code touchstone.py from scikit-rf, an open-source Pyt
 
 To run:
 cd to folder containing code
+
 python3 meRF.py
 
 You can connect via ssh -X to the Pi ip address and the programme will run locally.
