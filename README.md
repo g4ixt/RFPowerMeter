@@ -22,8 +22,11 @@ python3 meRF.py
 You can connect via ssh -X to the Pi ip address and the programme will run locally.
 
 ssh -X ian@192.168.1.150
+
 <enter password>
+  
 cd RFPowerMeter
+  
 python3 meRF.py
 
 Enter the frequency on the display tab and press 'run'.
