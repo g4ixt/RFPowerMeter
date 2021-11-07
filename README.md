@@ -9,6 +9,7 @@ https://www.sv1afn.com/en/products/ad8318-digital-rf-power-detector.html
 
 Tested on Raspberry Pi3b running a clean installation of 32-bit Raspbian Buster 5.10.63-v7+
 Install from the repository: python3-pyqt5, python3-numpy, python3-spidev, python3-pyqtgraph
+
 SPI must be enabled, using Raspberry Pi Configuration on the Preferences menu and the user must be in the spi and dialout groups.
 
 A simplified subset of the code touchstone.py from scikit-rf, an open-source Python package for RF and Microwave applications is included here.  This was necessary for Raspberry Pi without having to install the full scikit-rf, since this appears to be incompatible with PiOS 'Buster'.  It is used to import 's2p' files in a suitable format from NanoVNA-F_V2 or similar hardware.
