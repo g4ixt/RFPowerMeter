@@ -31,7 +31,7 @@ python3 meRF.py
 
 Enter the frequency on the display tab and press 'run'.
 The 'averaging' setting affects the analogue gauge meter and how often the GUI is updated.  If set too low, updating the GUI dramatically slows down the readings.
-The 'memory length' setting controls the number of points shown on the moving graph and can be set up to maximum of 100,000 for no particular reason.
+The 'memory length' setting controls the number of points shown on the moving graph and can be set up to maximum of 100,000 (for no particular reason).
 
 To calibrate:
 Enter the frequency and the known powers 'cal high' and cal low' in dBm.  Feed sensor with the known 'high' power, select 'high code' and press measure.  Similar for the known low power.
