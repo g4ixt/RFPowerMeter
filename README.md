@@ -19,7 +19,7 @@ cd to folder containing code
 
 python3 meRF.py
 
-You can connect via ssh -X to the Pi ip address and the programme will run locally.
+You can connect via ssh -X to the Pi ip address and the X GUI will be on the local machine.
 
 ssh -X ian@192.168.1.150
 
@@ -36,6 +36,10 @@ The 'memory length' setting controls the number of points shown on the moving gr
 To calibrate:
 Enter the frequency and the known powers 'cal high' and cal low' in dBm.  Feed sensor with the known 'high' power, select 'high code' and press measure.  Similar for the known low power.
 You might have to tab out of the row to get the database to update.
+
+Once both values are measured, click in the row and press the calibrate button
+
+The slope and intercept should populate.
 
 To add attenuators or couplers:
 Add a row in the 'devices' table, enter details, tab or click in another row.
