@@ -7,7 +7,7 @@ Calibration and Attenuator data is stored in a sqlite database.
 
 https://www.sv1afn.com/en/products/ad8318-digital-rf-power-detector.html
 
-* Note * the AD7887 ADC is operating at 5V, this should not be directly connected to the Pi GPIO which operates at 3.3V * Note *
+* Note: the AD7887 ADC is operating at 5V, this should not be directly connected to the Pi GPIO which operates at 3.3V
 
 Tested on Raspberry Pi3b running a clean installation of 32-bit Raspbian Buster 5.10.63-v7+
 Install from the repository: python3-pyqt5, python3-numpy, python3-spidev, python3-pyqtgraph
