@@ -124,9 +124,9 @@
         <widget class="QSpinBox" name="freqBox">
          <property name="geometry">
           <rect>
-           <x>170</x>
+           <x>189</x>
            <y>40</y>
-           <width>130</width>
+           <width>111</width>
            <height>26</height>
           </rect>
          </property>
@@ -176,7 +176,7 @@
          <property name="geometry">
           <rect>
            <x>20</x>
-           <y>120</y>
+           <y>80</y>
            <width>131</width>
            <height>30</height>
           </rect>
@@ -193,9 +193,9 @@
         <widget class="QSpinBox" name="averaging">
          <property name="geometry">
           <rect>
-           <x>170</x>
-           <y>160</y>
-           <width>131</width>
+           <x>190</x>
+           <y>120</y>
+           <width>111</width>
            <height>26</height>
           </rect>
          </property>
@@ -214,7 +214,7 @@
           <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
          </property>
          <property name="minimum">
-          <number>10</number>
+          <number>1</number>
          </property>
          <property name="maximum">
           <number>1000</number>
@@ -247,9 +247,9 @@
         <widget class="QComboBox" name="Scale">
          <property name="geometry">
           <rect>
-           <x>170</x>
-           <y>120</y>
-           <width>131</width>
+           <x>190</x>
+           <y>80</y>
+           <width>111</width>
            <height>25</height>
           </rect>
          </property>
@@ -262,9 +262,9 @@
         <widget class="QSpinBox" name="dequeLength">
          <property name="geometry">
           <rect>
-           <x>170</x>
+           <x>190</x>
            <y>200</y>
-           <width>131</width>
+           <width>111</width>
            <height>26</height>
           </rect>
          </property>
@@ -293,7 +293,7 @@
          <property name="geometry">
           <rect>
            <x>20</x>
-           <y>160</y>
+           <y>120</y>
            <width>141</width>
            <height>30</height>
           </rect>
@@ -311,7 +311,7 @@
          <property name="geometry">
           <rect>
            <x>360</x>
-           <y>160</y>
+           <y>120</y>
            <width>83</width>
            <height>25</height>
           </rect>
@@ -331,6 +331,54 @@
          </property>
          <property name="text">
           <string>Stop</string>
+         </property>
+        </widget>
+        <widget class="QDoubleSpinBox" name="measurementRate">
+         <property name="enabled">
+          <bool>false</bool>
+         </property>
+         <property name="geometry">
+          <rect>
+           <x>190</x>
+           <y>160</y>
+           <width>111</width>
+           <height>26</height>
+          </rect>
+         </property>
+         <property name="font">
+          <font>
+           <pointsize>12</pointsize>
+          </font>
+         </property>
+         <property name="alignment">
+          <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+         </property>
+         <property name="suffix">
+          <string> /s</string>
+         </property>
+         <property name="decimals">
+          <number>1</number>
+         </property>
+         <property name="maximum">
+          <double>10000.000000000000000</double>
+         </property>
+        </widget>
+        <widget class="QLabel" name="label">
+         <property name="geometry">
+          <rect>
+           <x>20</x>
+           <y>168</y>
+           <width>171</width>
+           <height>17</height>
+          </rect>
+         </property>
+         <property name="font">
+          <font>
+           <pointsize>12</pointsize>
+          </font>
+         </property>
+         <property name="text">
+          <string>Measurement Rate</string>
          </property>
         </widget>
        </widget>
