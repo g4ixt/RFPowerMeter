@@ -22,7 +22,6 @@ from touchstone_subset import Touchstone
 spi = spidev.SpiDev()
 
 # AD7887 ADC control register setting for external reference, single channel, mode 3
-# dOut = 0b00100001 # stay powered on all the time
 dOut = 0b00100000  # power down when CS high
 
 # Meter scale values
@@ -93,34 +92,28 @@ class Measurement():
         ui.sensorPower.setValue(self.averagePower)
         ui.inputPower.setValue(self.powerdBm)
 
-        # update power meter range and label
         try:
-            meterRange = next(x for x, val in enumerate(dBm) if val > self.powerdBm)
-            if meterRange > 0:
-                meterRange += -1
+            meterRange = next(x for x, val in enumerate(dBm) if val > self.powerdBm) - 1
+            # meterRange += -1
             ui.powerUnit.setText(str(Units[meterRange]))
             ui.powerWatts.setSuffix(str(Units[meterRange]))
         except StopIteration:
             ui.spiNoise.setText('SPI error detected')
 
         # convert dBm to Watts and update analogue meter scale
-        # meterRange = 1  # test
-        meter_dB = self.powerdBm - dBm[meterRange]  # ref to the max value for each range, i.e. 1000 units
-        self.powerW = 10 ** (meter_dB / 10)  # dB to 'unit' Watts
-        if ui.Scale.currentText() == 'Auto':  # future manual setting method to add
-            ui.meterWidget.set_MaxValue(1000)
-            if self.powerW <= 10:
-                ui.meterWidget.set_MaxValue(10)
-            if self.powerW >= 10 and self.powerW <= 100:
-                ui.meterWidget.set_MaxValue(100)
+        meter_dB = self.powerdBm - dBm[meterRange]  # convert to dB values allowing for SI prefix nW, mW etc
+        self.powerW = 10 ** (meter_dB / 10)  # dB to Power (in prefix fractions of Watts)
+
+        ui.meterWidget.set_MaxValue(1000)
+        if self.powerW <= 10:
+            ui.meterWidget.set_MaxValue(10)
+        if self.powerW >= 10 and self.powerW <= 100:
+            ui.meterWidget.set_MaxValue(100)
 
         # update the analog gauge widget
         ui.meterWidget.update_value(self.powerW, mouse_controlled=False)
         ui.powerWatts.setValue(self.powerW)
         ui.measurementRate.setValue(self.rate)
-
-        # update the moving pyqtgraph
-        powerCurve.setData(self.timebase, self.powerList)
 
     def powerScope(self):
         length = ui.dequeLength.value()
@@ -128,6 +121,9 @@ class Measurement():
         self.powerList = np.full(length, -64)
         self.count = 0
 
+    def updatePowerScope(self):
+        # update the moving pyqtgraph
+        powerCurve.setData(self.timebase, self.powerList)
 
 class modelView():
     '''set up and process data models bound to the GUI widgets'''
@@ -353,7 +349,7 @@ def openSPI():
 
     # spi max_speed_hz must be integer value accepted by the driver : Pi goes up to 31.2e6 but AD7887 only up to 1MHz
     # valid values are 7.629e3, 15.2e3, 30.5e3, 61e3, 122e3, 244e3, 488e3, 976e3
-    spi.max_speed_hz = 61000
+    spi.max_speed_hz = 976000
 
 
 def startMeter():
@@ -385,6 +381,7 @@ def readMeter():
         # GUI updates slow the measurements down significantly, so only do them when needed
         meter.rate = meter.count / (meter.timebase[0] - meter.timebase[meter.count])
         meter.updateGUI()
+        meter.updatePowerScope()
         meter.count = 0
 
 
@@ -445,11 +442,10 @@ ui.graphWidget.setLabel('left', 'Sensor Power', 'dBm')
 ui.graphWidget.setLabel('bottom', 'Elapsed Time', 'Seconds')
 powerCurve = ui.graphWidget.plot([], [], name='Sensor', pen=yellow, width=1)
 
-# populate combo boxes
-ui.Scale.addItems(['Auto'])  # future - addition of manual settings
-ui.Scale.itemText(0)
-
 # Connect signals from buttons
+
+# Frequency changed
+ui.freqBox.valueChanged.connect(selectCal)
 
 # attenuators, couplers and cables
 ui.addDevice.clicked.connect(attenuators.addRow)
