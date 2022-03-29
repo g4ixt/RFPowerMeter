@@ -27,7 +27,7 @@
        <bool>false</bool>
       </property>
       <property name="currentIndex">
-       <number>0</number>
+       <number>3</number>
       </property>
       <widget class="QWidget" name="tab">
        <attribute name="title">
@@ -1067,6 +1067,11 @@
         </widget>
        </widget>
       </widget>
+      <widget class="QWidget" name="tab_4">
+       <attribute name="title">
+        <string>Sig Gen</string>
+       </attribute>
+      </widget>
      </widget>
     </item>
    </layout>
@@ -1077,7 +1082,7 @@
      <x>0</x>
      <y>0</y>
      <width>1083</width>
-     <height>22</height>
+     <height>30</height>
     </rect>
    </property>
   </widget>
