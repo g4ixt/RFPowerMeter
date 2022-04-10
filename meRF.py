@@ -64,7 +64,7 @@ class Measurement():
         self.rate = 0
         # self.averages = 20
 
-    def readSPI(self):
+    def readSPI(self):  # put into a worker thread with a modified version of calcPower
         # dOut is data sent from the Pi to the AD7887, i.e. MOSI.
         # dIn is the RF power measurement result, i.e. MISO.
         dIn = spi.xfer([dOut, dOut])  # AD7882 is 12 bit but Pi SPI only 8 bit so two bytes needed
@@ -78,12 +78,15 @@ class Measurement():
     def calcPower(self):
         # uses the calibration settings nearest to the measurement frequency
         calRecord = calibration.tm.record(calibration.id)
-        self.sensorPower = (self.dIn/calRecord.value('Slope')) + calRecord.value('Intercept')
+        # need only do this once when 'start meter' is pressed, & pass in intercept & slope - this wastes time
+        # should be able to move these into the selectCal method?
+        self.sensorPower = (self.dIn/calRecord.value('Slope')) + calRecord.value('Intercept')   # see above
+        
         self.powerList = np.roll(self.powerList, 1)
         self.powerList[0] = self.sensorPower  # used to plot power graph
 
         if self.sensorPower >= 12 and self.dIn != 0:  # sensor absolute maximum input level exceeded
-            ui.sensorOverload.setText('Sensor rating exceeded')
+            ui.sensorOverload.setText('Sensor rating exceeded') # emit this as an error from the worker thread
 
         self.averagePower = np.average(self.powerList[0:self.averages:1])
         self.powerdBm = self.averagePower - attenuators.loss  # subtract total loss of couplers and attenuators
