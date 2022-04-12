@@ -10,7 +10,8 @@ Python package for RF and Microwave applications.
 """
 
 import numpy as np
-from PyQt5 import QtWidgets, QtCore
+from PyQt5 import QtWidgets, QtCore, QRunnable
+from PyQt5.QtCore import pyqtSlot, QObject
 from PyQt5.QtWidgets import QMessageBox, QFileDialog
 from PyQt5.QtSql import QSqlDatabase, QSqlTableModel
 import spidev
@@ -64,29 +65,28 @@ class Measurement():
         self.rate = 0
         # self.averages = 20
 
-    def readSPI(self):  # put into a worker thread with a modified version of calcPower
+    def readSPI(self):
         # dOut is data sent from the Pi to the AD7887, i.e. MOSI.
         # dIn is the RF power measurement result, i.e. MISO.
         dIn = spi.xfer([dOut, dOut])  # AD7882 is 12 bit but Pi SPI only 8 bit so two bytes needed
         ui.spiNoise.setText('')
 
         if dIn[0] > 13:  # anything > 13 is due to noise or spi errors
-            ui.spiNoise.setText('SPI error detected')
+            ui.spiNoise.setText('SPI error detected')   # emit as a string signal
 
-        self.dIn = (dIn[0] << 8) + dIn[1]  # shift first byte to be MSB of a 12-bit word and add second byte
+        self.dIn = (dIn[0] << 8) + dIn[1]  # shift first byte to be MSB of a 12-bit word and add second byte     
 
     def calcPower(self):
-        # uses the calibration settings nearest to the measurement frequency
-        calRecord = calibration.tm.record(calibration.id)
-        # need only do this once when 'start meter' is pressed, & pass in intercept & slope - this wastes time
-        # should be able to move these into the selectCal method?
-        self.sensorPower = (self.dIn/calRecord.value('Slope')) + calRecord.value('Intercept')   # see above
+        # uses calibration nearest to the measurement frequency obtained from selectCal method
+        # calRecord = calibration.tm.record(calibration.id)
+        # self.sensorPower = (self.dIn/calRecord.value('Slope')) + calRecord.value('Intercept')
         
+        self.sensorPower = (self.dIn/calibration.slope) + calibration.intercept
         self.powerList = np.roll(self.powerList, 1)
         self.powerList[0] = self.sensorPower  # used to plot power graph
 
         if self.sensorPower >= 12 and self.dIn != 0:  # sensor absolute maximum input level exceeded
-            ui.sensorOverload.setText('Sensor rating exceeded') # emit this as an error from the worker thread
+            ui.sensorOverload.setText('Sensor rating exceeded') # emit this as string from worker thread for GUI
 
         self.averagePower = np.average(self.powerList[0:self.averages:1])
         self.powerdBm = self.averagePower - attenuators.loss  # subtract total loss of couplers and attenuators
@@ -193,6 +193,20 @@ class modelView():
     # def saveData(self):  # not required
     #     self.tm.submit()
 
+class Worker(QRunnable):    # needs amending - see passing in fn on web pythonguis.com
+    '''    power measurement thread    '''
+    def __init__(self, *args, **kwargs):
+        super().__init__()
+        self.args = args
+        self.kwargs = kwargs
+    
+    @pyqtSlot()
+    def run(self):
+        print("power measurement thread started")
+        # code goes here
+        x = 0
+        print("power measurement thread ended")
+
 
 ##############################################################################
 # other methods
@@ -268,9 +282,10 @@ def selectCal():
         calRecord = calibration.tm.record(i)
         if difference > abs(ui.freqBox.value()-calRecord.value('Freq MHz')):
             difference = abs(ui.freqBox.value()-calRecord.value('Freq MHz'))
-            calibration.id = i
+            # calibration.id = i
             ui.calQualLabel.setText(calRecord.value('CalQuality'))
-
+    calibration.slope = calRecord.value('Slope')
+    calibration.intercept = calRecord.value('Intercept')
 
 def popUp(message, button):
     msg = QMessageBox(parent=(window))
