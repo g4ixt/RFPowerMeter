@@ -10,8 +10,8 @@ Python package for RF and Microwave applications.
 """
 
 import numpy as np
-from PyQt5 import QtWidgets, QtCore, QRunnable
-from PyQt5.QtCore import pyqtSlot, QObject
+from PyQt5 import QtWidgets, QtCore
+from PyQt5.QtCore import pyqtSlot, QObject, QRunnable, QThreadPool
 from PyQt5.QtWidgets import QMessageBox, QFileDialog
 from PyQt5.QtSql import QSqlDatabase, QSqlTableModel
 import spidev
@@ -64,29 +64,30 @@ class Measurement():
         self.time = QtCore.QElapsedTimer()
         self.rate = 0
         # self.averages = 20
+        self.threadpool = QThreadPool()
+        print("Multithreading with %d threads" % self.threadpool.maxThreadCount())
 
     def readSPI(self):
         # dOut is data sent from the Pi to the AD7887, i.e. MOSI.
         # dIn is the RF power measurement result, i.e. MISO.
         dIn = spi.xfer([dOut, dOut])  # AD7882 is 12 bit but Pi SPI only 8 bit so two bytes needed
         ui.spiNoise.setText('')
+        self.counter += 1
 
         if dIn[0] > 13:  # anything > 13 is due to noise or spi errors
             ui.spiNoise.setText('SPI error detected')   # emit as a string signal
 
-        self.dIn = (dIn[0] << 8) + dIn[1]  # shift first byte to be MSB of a 12-bit word and add second byte     
+        self.dIn = (dIn[0] << 8) + dIn[1]  # shift first byte to be MSB of a 12-bit word and add second byte
 
     def calcPower(self):
         # uses calibration nearest to the measurement frequency obtained from selectCal method
-        # calRecord = calibration.tm.record(calibration.id)
-        # self.sensorPower = (self.dIn/calRecord.value('Slope')) + calRecord.value('Intercept')
-        
+
         self.sensorPower = (self.dIn/calibration.slope) + calibration.intercept
         self.powerList = np.roll(self.powerList, 1)
         self.powerList[0] = self.sensorPower  # used to plot power graph
 
         if self.sensorPower >= 12 and self.dIn != 0:  # sensor absolute maximum input level exceeded
-            ui.sensorOverload.setText('Sensor rating exceeded') # emit this as string from worker thread for GUI
+            ui.sensorOverload.setText('Sensor rating exceeded')  # emit this as string from worker thread for GUI
 
         self.averagePower = np.average(self.powerList[0:self.averages:1])
         self.powerdBm = self.averagePower - attenuators.loss  # subtract total loss of couplers and attenuators
@@ -199,12 +200,13 @@ class Worker(QRunnable):    # needs amending - see passing in fn on web pythongu
         super().__init__()
         self.args = args
         self.kwargs = kwargs
-    
+
     @pyqtSlot()
     def run(self):
         print("power measurement thread started")
-        # code goes here
-        x = 0
+        while meter.timer.isActive():
+            meter.readSPI()
+            meter.calcPower()
         print("power measurement thread ended")
 
 
@@ -224,7 +226,7 @@ def exit_handler():
     print('Closed')
 
 
-def importS2P():
+def importS2P():    # could maybe modify this to run in a separate thread so the GUI updates in real time
     # Import the (Touchstone) file containing attenuator/coupler/cable calibration data and extract
     # insertion loss or coupling factors by frequency
 
@@ -282,10 +284,10 @@ def selectCal():
         calRecord = calibration.tm.record(i)
         if difference > abs(ui.freqBox.value()-calRecord.value('Freq MHz')):
             difference = abs(ui.freqBox.value()-calRecord.value('Freq MHz'))
-            # calibration.id = i
+            calibration.slope = calRecord.value('Slope')
+            calibration.intercept = calRecord.value('Intercept')
             ui.calQualLabel.setText(calRecord.value('CalQuality'))
-    calibration.slope = calRecord.value('Slope')
-    calibration.intercept = calRecord.value('Intercept')
+
 
 def popUp(message, button):
     msg = QMessageBox(parent=(window))
@@ -388,22 +390,26 @@ def startMeter():
         sumLosses()
         selectCal()
         meter.averages = ui.averaging.value()
+        meter.counter = 0   # counts number of power readings
         meter.powerScope()
         meter.time.start()  # A QElapsedTimer that measures how long meter has been running for
         meter.timer.start()  # this timer calls readMeter method every time it re-starts
+        worker = Worker()
+        meter.threadpool.start(worker)
 
 
 def readMeter():
-    meter.count += 1
+    # meter.count += 1
     meter.timebase = np.roll(meter.timebase, 1)
     meter.timebase[0] = meter.time.elapsed()/1000
-    meter.readSPI()
-    meter.calcPower()
-    if meter.count == meter.averages:
+    # meter.readSPI()
+    # meter.calcPower()
+    # if meter.count == meter.averages:
         # GUI updates slow the measurements down significantly, so only do them when needed
-        meter.rate = meter.count / (meter.timebase[0] - meter.timebase[meter.count])
-        meter.updateGUI()
-        meter.count = 0
+    # meter.rate = meter.count / (meter.timebase[0] - meter.timebase[meter.count])
+    meter.rate = meter.counter / (meter.time.elapsed()/1000)
+    meter.updateGUI()
+    meter.count = 0
 
 
 def stopMeter():
@@ -425,8 +431,8 @@ config = database()
 config.connect()
 
 meter = Measurement()
-high = Measurement()
-low = Measurement()
+# high = Measurement()
+# low = Measurement()
 
 attenuators = modelView("Device")
 calibration = modelView("calibration")
