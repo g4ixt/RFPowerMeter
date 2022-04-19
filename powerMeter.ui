@@ -27,7 +27,7 @@
        <bool>false</bool>
       </property>
       <property name="currentIndex">
-       <number>3</number>
+       <number>0</number>
       </property>
       <widget class="QWidget" name="tab">
        <attribute name="title">
@@ -341,7 +341,7 @@
           <rect>
            <x>190</x>
            <y>160</y>
-           <width>111</width>
+           <width>141</width>
            <height>26</height>
           </rect>
          </property>
@@ -360,7 +360,7 @@
           <number>1</number>
          </property>
          <property name="maximum">
-          <double>10000.000000000000000</double>
+          <double>100000.000000000000000</double>
          </property>
         </widget>
         <widget class="QLabel" name="label">
@@ -1082,7 +1082,7 @@
      <x>0</x>
      <y>0</y>
      <width>1083</width>
-     <height>30</height>
+     <height>32</height>
     </rect>
    </property>
   </widget>

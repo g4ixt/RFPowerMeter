@@ -39,12 +39,14 @@ class database():
 
     def connect(self):
 
+        print("Open database")
         self.db = QSqlDatabase.addDatabase('QSQLITE')
 
         if QtCore.QFile.exists('powerMeter.db'):
             self.db.setDatabaseName('powerMeter.db')
             self.db.open()
         else:
+            print("Database file missing")
             msg = QMessageBox()
             msg.setIcon(QMessageBox.Critical)
             msg.setText('Database file missing')
@@ -63,7 +65,6 @@ class Measurement():
         self.timer = QtCore.QTimer()
         self.time = QtCore.QElapsedTimer()
         self.rate = 0
-        # self.averages = 20
         self.threadpool = QThreadPool()
         print("Multithreading with %d threads" % self.threadpool.maxThreadCount())
 
@@ -71,7 +72,6 @@ class Measurement():
         # dOut is data sent from the Pi to the AD7887, i.e. MOSI.
         # dIn is the RF power measurement result, i.e. MISO.
         dIn = spi.xfer([dOut, dOut])  # AD7882 is 12 bit but Pi SPI only 8 bit so two bytes needed
-        ui.spiNoise.setText('')
         self.counter += 1
 
         if dIn[0] > 13:  # anything > 13 is due to noise or spi errors
@@ -79,20 +79,21 @@ class Measurement():
 
         self.dIn = (dIn[0] << 8) + dIn[1]  # shift first byte to be MSB of a 12-bit word and add second byte
 
-    def calcPower(self):
-        # uses calibration nearest to the measurement frequency obtained from selectCal method
-
+        # use calibration nearest to the measurement frequency obtained from selectCal method
         self.sensorPower = (self.dIn/calibration.slope) + calibration.intercept
-        self.powerList = np.roll(self.powerList, 1)
-        self.powerList[0] = self.sensorPower  # used to plot power graph
+
+        if self.counter/10 == int(self.counter/10):
+            display.scan(self.sensorPower)
+
 
         if self.sensorPower >= 12 and self.dIn != 0:  # sensor absolute maximum input level exceeded
             ui.sensorOverload.setText('Sensor rating exceeded')  # emit this as string from worker thread for GUI
 
-        self.averagePower = np.average(self.powerList[0:self.averages:1])
-        self.powerdBm = self.averagePower - attenuators.loss  # subtract total loss of couplers and attenuators
 
     def updateGUI(self):
+        self.averagePower = np.average(display.yAxis[0:50])  # test
+        self.powerdBm = self.averagePower - attenuators.loss  # subtract total loss of couplers and attenuators
+
         # uses the average powers apart from the moving graph, which uses the individual measurements
         ui.sensorPower.setValue(self.averagePower)
         ui.inputPower.setValue(self.powerdBm)
@@ -124,13 +125,32 @@ class Measurement():
         ui.measurementRate.setValue(self.rate)
 
         # update the moving pyqtgraph
-        powerCurve.setData(self.timebase, self.powerList)
+        # display.scan(self.sensorPower)
+        powerCurve.setData(display.xAxis, display.yAxis)
 
-    def powerScope(self):
-        length = ui.dequeLength.value()
-        self.timebase = np.zeros(length)
-        self.powerList = np.full(length, -64)
+
+class powerScope():
+    '''A moving power vs time display like an oscilloscope'''
+
+    def __init__(self):
+        # do nothing yet
+        x = 0
+
+    def setTimebase(self):
+        self.samples = ui.dequeLength.value()
+        self.xAxis = np.arange(self.samples)
+        self.yAxis = np.full(self.samples, -75)
         self.count = 0
+
+    def scan(self, sensorPower):
+        # write y-axis values into buffer
+        while self.count < self.samples:  # write x and y into the buffer until it's full
+            self.xAxis[self.count] = self.count
+            self.yAxis[self.count] = sensorPower
+            self.count += 1
+        else:
+            self.yAxis = np.roll(self.yAxis, -1)  # shift all the y-values left one measurement step (x-increment)
+            self.yAxis[self.count-1] = sensorPower  # write the latest value to the highest x position
 
 
 class modelView():
@@ -194,27 +214,29 @@ class modelView():
     # def saveData(self):  # not required
     #     self.tm.submit()
 
-class Worker(QRunnable):    # needs amending - see passing in fn on web pythonguis.com
-    '''    power measurement thread    '''
-    def __init__(self, *args, **kwargs):
+
+class Worker(QRunnable):
+    '''    multithread some functions   '''
+
+    def __init__(self, fn,  *args, **kwargs):
         super().__init__()
+        self.fn = fn
         self.args = args
         self.kwargs = kwargs
 
     @pyqtSlot()
     def run(self):
-        print("power measurement thread started")
+        print("%s thread running" % self.fn.__name__)
         while meter.timer.isActive():
-            meter.readSPI()
-            meter.calcPower()
-        print("power measurement thread ended")
+            self.fn(*self.args, **self.kwargs)
+        print("%s thread finished" % self.fn.__name__)
 
 
 ##############################################################################
 # other methods
 
 def exit_handler():
-    print('Closing Database')
+    print('Close Database')
     attenuators.tm.submitAll()
     parameters.tm.submitAll()
     calibration.tm.submitAll()
@@ -371,9 +393,9 @@ def openSPI():
     spi.no_cs = False
     spi.mode = 3  # set clock polarity and phase to 0b11
 
-    # spi max_speed_hz must be integer value accepted by the driver : Pi goes up to 31.2e6 but AD7887 only up to 1MHz
-    # valid values are 7.629e3, 15.2e3, 30.5e3, 61e3, 122e3, 244e3, 488e3, 976e3
-    spi.max_speed_hz = 61000
+    # spi max_speed_hz must be integer val accepted by driver : Pi max=31.2e6 but AD7887 max=125ks/s or 2MHz fSCLK
+    # valid values are 7.629e3, 15.2e3, 30.5e3, 61e3, 122e3, 244e3, 488e3, 976e3, 1.953e6, [3.9, 7.8, 15.6, 31.2e6]
+    spi.max_speed_hz = 1953000
 
 
 def startMeter():
@@ -384,32 +406,26 @@ def startMeter():
     else:
         # disable settings buttons and start measuring if spi device present
         ui.sensorOverload.setText('')
+        ui.spiNoise.setText('')
         ui.browseDevices.setEnabled(False)
         ui.deviceParameters.setEnabled(False)
         ui.calTable.setEnabled(False)
+
         sumLosses()
         selectCal()
         meter.averages = ui.averaging.value()
         meter.counter = 0   # counts number of power readings
-        meter.powerScope()
+        display.setTimebase()
         meter.time.start()  # A QElapsedTimer that measures how long meter has been running for
         meter.timer.start()  # this timer calls readMeter method every time it re-starts
-        worker = Worker()
-        meter.threadpool.start(worker)
+        measurePower = Worker(meter.readSPI)
+        meter.threadpool.start(measurePower)
 
 
 def readMeter():
-    # meter.count += 1
-    meter.timebase = np.roll(meter.timebase, 1)
-    meter.timebase[0] = meter.time.elapsed()/1000
-    # meter.readSPI()
-    # meter.calcPower()
-    # if meter.count == meter.averages:
-        # GUI updates slow the measurements down significantly, so only do them when needed
-    # meter.rate = meter.count / (meter.timebase[0] - meter.timebase[meter.count])
+
     meter.rate = meter.counter / (meter.time.elapsed()/1000)
     meter.updateGUI()
-    meter.count = 0
 
 
 def stopMeter():
@@ -437,6 +453,7 @@ meter = Measurement()
 attenuators = modelView("Device")
 calibration = modelView("calibration")
 parameters = modelView("deviceParameters")
+
 
 ##############################################################################
 # interfaces to the GUI
@@ -466,7 +483,7 @@ ui.graphWidget.addLine(y=10, movable=False, pen=red)
 ui.graphWidget.addLine(y=-5, movable=False, pen=blue)
 ui.graphWidget.addLine(y=-50, movable=False, pen=blue)
 ui.graphWidget.setLabel('left', 'Sensor Power', 'dBm')
-ui.graphWidget.setLabel('bottom', 'Elapsed Time', 'Seconds')
+ui.graphWidget.setLabel('bottom', 'Power Measurement', 'Samples')
 powerCurve = ui.graphWidget.plot([], [], name='Sensor', pen=yellow, width=1)
 
 # populate combo boxes
@@ -496,6 +513,8 @@ ui.stopButton.clicked.connect(stopMeter)
 
 ##############################################################################
 # set up the application
+
+display = powerScope()
 
 attenuators.createTableModel()
 
