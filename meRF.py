@@ -11,7 +11,7 @@ Python package for RF and Microwave applications.
 
 import numpy as np
 from PyQt5 import QtWidgets, QtCore
-from PyQt5.QtCore import pyqtSlot, QObject, QRunnable, QThreadPool
+from PyQt5.QtCore import pyqtSlot, QObject, QRunnable, QThreadPool, pyqtSignal
 from PyQt5.QtWidgets import QMessageBox, QFileDialog
 from PyQt5.QtSql import QSqlDatabase, QSqlTableModel
 import spidev
@@ -65,6 +65,9 @@ class Measurement():
         self.timer = QtCore.QTimer()
         self.time = QtCore.QElapsedTimer()
         self.rate = 0
+        self.buffer = np.zeros(10)
+
+        # self.signals = WorkerSignals()
         self.threadpool = QThreadPool()
         print("Multithreading with %d threads" % self.threadpool.maxThreadCount())
 
@@ -82,12 +85,17 @@ class Measurement():
         # use calibration nearest to the measurement frequency obtained from selectCal method
         self.sensorPower = (self.dIn/calibration.slope) + calibration.intercept
 
+        self.buffer[0] = self.sensorPower   # test
+        # self.signals.sensorPower.emit(self.buffer)
+
         if self.counter/10 == int(self.counter/10):
             display.scan(self.sensorPower)
 
 
         if self.sensorPower >= 12 and self.dIn != 0:  # sensor absolute maximum input level exceeded
             ui.sensorOverload.setText('Sensor rating exceeded')  # emit this as string from worker thread for GUI
+
+        return self.buffer
 
 
     def updateGUI(self):
@@ -223,13 +231,23 @@ class Worker(QRunnable):
         self.fn = fn
         self.args = args
         self.kwargs = kwargs
+        self.signals = WorkerSignals()
 
     @pyqtSlot()
     def run(self):
-        print("%s thread running" % self.fn.__name__)
-        while meter.timer.isActive():
-            self.fn(*self.args, **self.kwargs)
+        print("%s thread running" % self.fn.__name__)  # print is not thread safe
+        while meter.timer.isActive():  # bad practice to access GUI component from worker thread. use a signal instead
+            result = self.fn(*self.args, **self.kwargs)
+            self.signals.powerRF.emit(result)
+            # print(result)
         print("%s thread finished" % self.fn.__name__)
+
+
+class WorkerSignals(QObject):
+    '''signals from running threads'''
+
+    # sensorSignal = pyqtSignal(str)
+    powerRF = pyqtSignal(np.ndarray)
 
 
 ##############################################################################
@@ -419,6 +437,7 @@ def startMeter():
         meter.time.start()  # A QElapsedTimer that measures how long meter has been running for
         meter.timer.start()  # this timer calls readMeter method every time it re-starts
         measurePower = Worker(meter.readSPI)
+        measurePower.signals.powerRF.connect(catchSignal(measurePower.signals.result))
         meter.threadpool.start(measurePower)
 
 
@@ -438,6 +457,11 @@ def stopMeter():
     parameters.tm.setFilter('')
     parameters.updateModel()
     spi.close()
+
+
+def catchSignal(buffer):
+    print("hello")
+    print(buffer)
 
 
 ##############################################################################
