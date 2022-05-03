@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>1083</width>
-    <height>765</height>
+    <height>777</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -38,7 +38,7 @@
          <rect>
           <x>20</x>
           <y>20</y>
-          <width>501</width>
+          <width>391</width>
           <height>371</height>
          </rect>
         </property>
@@ -62,7 +62,7 @@
           <rect>
            <x>20</x>
            <y>30</y>
-           <width>461</width>
+           <width>351</width>
            <height>321</height>
           </rect>
          </property>
@@ -81,8 +81,8 @@
          <widget class="QLabel" name="powerUnit">
           <property name="geometry">
            <rect>
-            <x>270</x>
-            <y>210</y>
+            <x>250</x>
+            <y>260</y>
             <width>91</width>
             <height>61</height>
            </rect>
@@ -241,7 +241,7 @@
           </font>
          </property>
          <property name="text">
-          <string>Memory length</string>
+          <string>Memory size</string>
          </property>
         </widget>
         <widget class="QComboBox" name="Scale">
@@ -259,7 +259,7 @@
           </font>
          </property>
         </widget>
-        <widget class="QSpinBox" name="dequeLength">
+        <widget class="QSpinBox" name="memorySize">
          <property name="geometry">
           <rect>
            <x>190</x>
@@ -277,7 +277,7 @@
           <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
          </property>
          <property name="minimum">
-          <number>100</number>
+          <number>1000</number>
          </property>
          <property name="maximum">
           <number>100000</number>
@@ -357,7 +357,7 @@
           <string> /s</string>
          </property>
          <property name="decimals">
-          <number>1</number>
+          <number>0</number>
          </property>
          <property name="maximum">
           <double>100000.000000000000000</double>
@@ -385,9 +385,9 @@
        <widget class="PlotWidget" name="graphWidget" native="true">
         <property name="geometry">
          <rect>
-          <x>540</x>
+          <x>430</x>
           <y>20</y>
-          <width>501</width>
+          <width>611</width>
           <height>371</height>
          </rect>
         </property>
@@ -440,6 +440,9 @@
          </property>
          <property name="suffix">
           <string> dBm</string>
+         </property>
+         <property name="decimals">
+          <number>1</number>
          </property>
          <property name="minimum">
           <double>-70.000000000000000</double>
@@ -498,6 +501,9 @@
          <property name="suffix">
           <string> dBm</string>
          </property>
+         <property name="decimals">
+          <number>1</number>
+         </property>
          <property name="minimum">
           <double>-70.000000000000000</double>
          </property>
@@ -536,6 +542,9 @@
          </property>
          <property name="suffix">
           <string> W</string>
+         </property>
+         <property name="decimals">
+          <number>1</number>
          </property>
          <property name="minimum">
           <double>0.000000000000000</double>
@@ -596,6 +605,9 @@
          </property>
          <property name="suffix">
           <string> dB</string>
+         </property>
+         <property name="decimals">
+          <number>1</number>
          </property>
          <property name="singleStep">
           <double>0.010000000000000</double>
@@ -1082,7 +1094,7 @@
      <x>0</x>
      <y>0</y>
      <width>1083</width>
-     <height>32</height>
+     <height>22</height>
     </rect>
    </property>
   </widget>

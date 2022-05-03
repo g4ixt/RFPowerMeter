@@ -16,6 +16,7 @@ from PyQt5.QtWidgets import QMessageBox, QFileDialog
 from PyQt5.QtSql import QSqlDatabase, QSqlTableModel
 import spidev
 import pyqtgraph
+# from collections import deque
 
 import QtPowerMeter
 from touchstone_subset import Touchstone
@@ -53,53 +54,56 @@ class database():
             msg.setStandardButtons(QMessageBox.Ok)
             msg.exec_()
 
+    def disconnect(self):
+        print('Close Database')
+        attenuators.tm.submitAll()
+        parameters.tm.submitAll()
+        calibration.tm.submitAll()
+        del attenuators.tm
+        del parameters.tm
+        del calibration.tm
+        self.db.close()
+
 
 class Measurement():
     '''Read AD8318 RF Power value via AD7887 ADC using the Serial Peripheral Interface (SPI)'''
 
     def __init__(self):
-        self.dIn = 0
-        self.sensorPower = -70
-        self.powerdBm = -70
-        self.powerW = 1
         self.timer = QtCore.QTimer()
-        self.time = QtCore.QElapsedTimer()
-        self.rate = 0
-        self.buffer = np.zeros(10)
+        self.runTime = QtCore.QElapsedTimer()
+        # self.rate = 0
+        self.buffer = np.zeros(25, dtype=float)
 
-        # self.signals = WorkerSignals()
         self.threadpool = QThreadPool()
         print("Multithreading with %d threads" % self.threadpool.maxThreadCount())
+        self.signals = WorkerSignals()
 
     def readSPI(self):
         # dOut is data sent from the Pi to the AD7887, i.e. MOSI.
         # dIn is the RF power measurement result, i.e. MISO.
-        dIn = spi.xfer([dOut, dOut])  # AD7882 is 12 bit but Pi SPI only 8 bit so two bytes needed
-        self.counter += 1
+        # This method runs in a separate Thread for performance reasons
+        for i in range(25):
+            dIn = spi.xfer([dOut, dOut])  # AD7882 is 12 bit but Pi SPI only 8 bit so two bytes needed
 
-        if dIn[0] > 13:  # anything > 13 is due to noise or spi errors
-            ui.spiNoise.setText('SPI error detected')   # emit as a string signal
+            if dIn[0] > 13:  # anything > 13 is due to noise or spi errors
+                ui.spiNoise.setText('SPI error detected')   # emit as a string signal
 
-        self.dIn = (dIn[0] << 8) + dIn[1]  # shift first byte to be MSB of a 12-bit word and add second byte
+            self.dIn = (dIn[0] << 8) + dIn[1]  # shift first byte to be MSB of a 12-bit word and add second byte
 
-        # use calibration nearest to the measurement frequency obtained from selectCal method
-        self.sensorPower = (self.dIn/calibration.slope) + calibration.intercept
+            # use calibration nearest to the measurement frequency obtained from selectCal method
+            self.sensorPower = (self.dIn/calibration.slope) + calibration.intercept
 
-        self.buffer[0] = self.sensorPower   # test
-        # self.signals.sensorPower.emit(self.buffer)
+            self.buffer[i] = self.sensorPower
 
-        if self.counter/10 == int(self.counter/10):
-            display.scan(self.sensorPower)
+            if self.sensorPower >= 12 and self.dIn != 0:  # sensor absolute maximum input level exceeded
+                ui.sensorOverload.setText('Sensor rating exceeded')  # emit this as string from worker thread for GUI
 
-
-        if self.sensorPower >= 12 and self.dIn != 0:  # sensor absolute maximum input level exceeded
-            ui.sensorOverload.setText('Sensor rating exceeded')  # emit this as string from worker thread for GUI
-
-        return self.buffer
-
+        self.yAxis = np.roll(self.yAxis, -25)  # shift all the y-values left 10
+        self.yAxis[-25:] = self.sensorPower  # write the latest 10 values to the right side
+        self.counter += 25
 
     def updateGUI(self):
-        self.averagePower = np.average(display.yAxis[0:50])  # test
+        self.averagePower = np.average(self.yAxis[-self.averages:])
         self.powerdBm = self.averagePower - attenuators.loss  # subtract total loss of couplers and attenuators
 
         # uses the average powers apart from the moving graph, which uses the individual measurements
@@ -133,32 +137,31 @@ class Measurement():
         ui.measurementRate.setValue(self.rate)
 
         # update the moving pyqtgraph
-        # display.scan(self.sensorPower)
-        powerCurve.setData(display.xAxis, display.yAxis)
-
-
-class powerScope():
-    '''A moving power vs time display like an oscilloscope'''
-
-    def __init__(self):
-        # do nothing yet
-        x = 0
+        powerCurve.setData(meter.xAxis, self.yAxis)
 
     def setTimebase(self):
-        self.samples = ui.dequeLength.value()
-        self.xAxis = np.arange(self.samples)
-        self.yAxis = np.full(self.samples, -75)
-        self.count = 0
+        self.samples = ui.memorySize.value()
+        self.xAxis = np.arange(self.samples, dtype=int)  # test
+        self.yAxis = np.full(self.samples, -75, dtype=float)  # test
 
-    def scan(self, sensorPower):
-        # write y-axis values into buffer
-        while self.count < self.samples:  # write x and y into the buffer until it's full
-            self.xAxis[self.count] = self.count
-            self.yAxis[self.count] = sensorPower
-            self.count += 1
-        else:
-            self.yAxis = np.roll(self.yAxis, -1)  # shift all the y-values left one measurement step (x-increment)
-            self.yAxis[self.count-1] = sensorPower  # write the latest value to the highest x position
+
+# class powerScope():
+#     '''A moving power vs time display like an oscilloscope'''
+
+#     def __init__(self):
+#         # do nothing yet
+#         x=0
+
+#     def scan(self, sensorPower):
+#         # write y-axis values into buffer
+#         for i in range(10):
+#             if self.count < self.samples:  # write x and y into the buffer until it's full
+#                 self.xAxis[self.count] = self.count
+#                 self.yAxis[self.count] = sensorPower[i]
+#                 self.count += 1
+#             else:
+#                 self.yAxis = np.roll(self.yAxis, -1)  # shift all the y-values left one measurement step (x-increment)
+#                 self.yAxis[self.count-1] = sensorPower[i]  # write the latest value to the highest x position
 
 
 class modelView():
@@ -226,27 +229,22 @@ class modelView():
 class Worker(QRunnable):
     '''    multithread some functions   '''
 
-    def __init__(self, fn,  *args, **kwargs):
+    def __init__(self, fn, *args):
         super().__init__()
         self.fn = fn
         self.args = args
-        self.kwargs = kwargs
-        self.signals = WorkerSignals()
 
     @pyqtSlot()
     def run(self):
         print("%s thread running" % self.fn.__name__)  # print is not thread safe
-        while meter.timer.isActive():  # bad practice to access GUI component from worker thread. use a signal instead
-            result = self.fn(*self.args, **self.kwargs)
-            self.signals.powerRF.emit(result)
-            # print(result)
+        while meter.timer.isActive():
+            self.fn(*self.args)
         print("%s thread finished" % self.fn.__name__)
 
 
 class WorkerSignals(QObject):
-    '''signals from running threads'''
+    '''   signals from running threads   '''
 
-    # sensorSignal = pyqtSignal(str)
     powerRF = pyqtSignal(np.ndarray)
 
 
@@ -254,14 +252,7 @@ class WorkerSignals(QObject):
 # other methods
 
 def exit_handler():
-    print('Close Database')
-    attenuators.tm.submitAll()
-    parameters.tm.submitAll()
-    calibration.tm.submitAll()
-    del attenuators.tm
-    del parameters.tm
-    del calibration.tm
-    config.db.close()
+    config.disconnect()
     spi.close()
     print('Closed')
 
@@ -433,17 +424,17 @@ def startMeter():
         selectCal()
         meter.averages = ui.averaging.value()
         meter.counter = 0   # counts number of power readings
-        display.setTimebase()
-        meter.time.start()  # A QElapsedTimer that measures how long meter has been running for
+        meter.setTimebase()
+        meter.runTime.start()  # A QElapsedTimer that measures how long meter has been running for
         meter.timer.start()  # this timer calls readMeter method every time it re-starts
+
         measurePower = Worker(meter.readSPI)
-        measurePower.signals.powerRF.connect(catchSignal(measurePower.signals.result))
         meter.threadpool.start(measurePower)
 
 
 def readMeter():
 
-    meter.rate = meter.counter / (meter.time.elapsed()/1000)
+    meter.rate = meter.counter / (meter.runTime.elapsed()/1000)
     meter.updateGUI()
 
 
@@ -457,11 +448,6 @@ def stopMeter():
     parameters.tm.setFilter('')
     parameters.updateModel()
     spi.close()
-
-
-def catchSignal(buffer):
-    print("hello")
-    print(buffer)
 
 
 ##############################################################################
@@ -500,12 +486,12 @@ ui.meterWidget.set_total_scale_angle_size(270)
 red = pyqtgraph.mkPen(color='r', width=1.0)
 blue = pyqtgraph.mkPen(color='c', width=1.0)
 yellow = pyqtgraph.mkPen(color='y', width=1.0)
-ui.graphWidget.setYRange(-70, 10)
+ui.graphWidget.setYRange(-60, 10)
 ui.graphWidget.setBackground('k')  # black
 ui.graphWidget.showGrid(x=True, y=True)
-ui.graphWidget.addLine(y=10, movable=False, pen=red)
-ui.graphWidget.addLine(y=-5, movable=False, pen=blue)
-ui.graphWidget.addLine(y=-50, movable=False, pen=blue)
+ui.graphWidget.addLine(y=10, movable=False, pen=red, label='max', labelOpts={'position':0.05, 'color':('r')})
+ui.graphWidget.addLine(y=-5, movable=False, pen=blue, label='<', labelOpts={'position':0.025, 'color':('c')})
+ui.graphWidget.addLine(y=-50, movable=False, pen=blue, label='>', labelOpts={'position':0.025, 'color':('c')})
 ui.graphWidget.setLabel('left', 'Sensor Power', 'dBm')
 ui.graphWidget.setLabel('bottom', 'Power Measurement', 'Samples')
 powerCurve = ui.graphWidget.plot([], [], name='Sensor', pen=yellow, width=1)
@@ -537,8 +523,6 @@ ui.stopButton.clicked.connect(stopMeter)
 
 ##############################################################################
 # set up the application
-
-display = powerScope()
 
 attenuators.createTableModel()
 
