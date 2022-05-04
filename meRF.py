@@ -35,6 +35,23 @@ dBm = [-90, -60, -30, 0, 30, 60]
 ##############################################################################
 # classes
 
+
+class Worker(QRunnable):
+    '''    multithread some functions   '''
+
+    def __init__(self, fn, *args):
+        super().__init__()
+        self.fn = fn
+        self.args = args
+
+    @pyqtSlot()
+    def run(self):
+        print("%s thread running" % self.fn.__name__)  # print is not thread safe
+        while meter.timer.isActive():
+            self.fn(*self.args)
+        print("%s thread finished" % self.fn.__name__)
+
+
 class database():
     '''calibration and attenuator/coupler data are stored in a SQLite database'''
 
@@ -71,12 +88,10 @@ class Measurement():
     def __init__(self):
         self.timer = QtCore.QTimer()
         self.runTime = QtCore.QElapsedTimer()
-        # self.rate = 0
         self.buffer = np.zeros(25, dtype=float)
-
         self.threadpool = QThreadPool()
         print("Multithreading with %d threads" % self.threadpool.maxThreadCount())
-        self.signals = WorkerSignals()
+
 
     def readSPI(self):
         # dOut is data sent from the Pi to the AD7887, i.e. MOSI.
@@ -86,7 +101,7 @@ class Measurement():
             dIn = spi.xfer([dOut, dOut])  # AD7882 is 12 bit but Pi SPI only 8 bit so two bytes needed
 
             if dIn[0] > 13:  # anything > 13 is due to noise or spi errors
-                ui.spiNoise.setText('SPI error detected')   # emit as a string signal
+                ui.spiNoise.setText('SPI error detected')   # emit as a string signal for GUI
 
             self.dIn = (dIn[0] << 8) + dIn[1]  # shift first byte to be MSB of a 12-bit word and add second byte
 
@@ -98,9 +113,11 @@ class Measurement():
             if self.sensorPower >= 12 and self.dIn != 0:  # sensor absolute maximum input level exceeded
                 ui.sensorOverload.setText('Sensor rating exceeded')  # emit this as string from worker thread for GUI
 
-        self.yAxis = np.roll(self.yAxis, -25)  # shift all the y-values left 10
-        self.yAxis[-25:] = self.sensorPower  # write the latest 10 values to the right side
+        # Shift Register - this limits sample rate.  Numpy roll is faster than collections.deque
+        self.yAxis = np.roll(self.yAxis, -25)
+        self.yAxis[-25:] = self.buffer
         self.counter += 25
+
 
     def updateGUI(self):
         self.averagePower = np.average(self.yAxis[-self.averages:])
@@ -121,7 +138,6 @@ class Measurement():
             ui.spiNoise.setText('SPI error detected')
 
         # convert dBm to Watts and update analogue meter scale
-        # meterRange = 1  # test
         meter_dB = self.powerdBm - dBm[meterRange]  # ref to the max value for each range, i.e. 1000 units
         self.powerW = 10 ** (meter_dB / 10)  # dB to 'unit' Watts
         if ui.Scale.currentText() == 'Auto':  # future manual setting method to add
@@ -143,25 +159,6 @@ class Measurement():
         self.samples = ui.memorySize.value()
         self.xAxis = np.arange(self.samples, dtype=int)  # test
         self.yAxis = np.full(self.samples, -75, dtype=float)  # test
-
-
-# class powerScope():
-#     '''A moving power vs time display like an oscilloscope'''
-
-#     def __init__(self):
-#         # do nothing yet
-#         x=0
-
-#     def scan(self, sensorPower):
-#         # write y-axis values into buffer
-#         for i in range(10):
-#             if self.count < self.samples:  # write x and y into the buffer until it's full
-#                 self.xAxis[self.count] = self.count
-#                 self.yAxis[self.count] = sensorPower[i]
-#                 self.count += 1
-#             else:
-#                 self.yAxis = np.roll(self.yAxis, -1)  # shift all the y-values left one measurement step (x-increment)
-#                 self.yAxis[self.count-1] = sensorPower[i]  # write the latest value to the highest x position
 
 
 class modelView():
@@ -222,42 +219,20 @@ class modelView():
         self.tm.select()
         self.tm.layoutChanged.emit()
 
-    # def saveData(self):  # not required
-    #     self.tm.submit()
-
-
-class Worker(QRunnable):
-    '''    multithread some functions   '''
-
-    def __init__(self, fn, *args):
-        super().__init__()
-        self.fn = fn
-        self.args = args
-
-    @pyqtSlot()
-    def run(self):
-        print("%s thread running" % self.fn.__name__)  # print is not thread safe
-        while meter.timer.isActive():
-            self.fn(*self.args)
-        print("%s thread finished" % self.fn.__name__)
-
-
-class WorkerSignals(QObject):
-    '''   signals from running threads   '''
-
-    powerRF = pyqtSignal(np.ndarray)
-
 
 ##############################################################################
 # other methods
 
 def exit_handler():
+    meter.timer.stop()
+    app.processEvents()
     config.disconnect()
     spi.close()
     print('Closed')
 
 
-def importS2P():    # could maybe modify this to run in a separate thread so the GUI updates in real time
+def importS2P():    # could maybe modify this to run in a separate thread so the GUI updates better?
+
     # Import the (Touchstone) file containing attenuator/coupler/cable calibration data and extract
     # insertion loss or coupling factors by frequency
 
@@ -382,13 +357,13 @@ def updateCal():
     else:
         calibration.row = ui.calTable.currentIndex().row()  # set the row index for the currently selected calibration
         record = calibration.tm.record(calibration.row)
-        # record.setValue('CalQuality', ui.calQual.currentText())
+        meter.setTimebase()
         if ui.vHigh.isChecked():
-            high.readSPI()
-            record.setValue('High Code', high.dIn)
+            meter.readSPI()
+            record.setValue('High Code', meter.dIn)
         if ui.vLow.isChecked():
-            low.readSPI()
-            record.setValue('Low Code', low.dIn)
+            meter.readSPI()
+            record.setValue('Low Code', meter.dIn)
 
         calibration.tm.setRecord(calibration.row, record)  # append the contents of 'record' to the table via the model
         calibration.updateModel()
@@ -419,6 +394,8 @@ def startMeter():
         ui.browseDevices.setEnabled(False)
         ui.deviceParameters.setEnabled(False)
         ui.calTable.setEnabled(False)
+        ui.measure.setEnabled(False)
+        ui.calibrate.setEnabled(False)
 
         sumLosses()
         selectCal()
@@ -433,16 +410,19 @@ def startMeter():
 
 
 def readMeter():
-
     meter.rate = meter.counter / (meter.runTime.elapsed()/1000)
     meter.updateGUI()
 
 
 def stopMeter():
     meter.timer.stop()
+
     ui.browseDevices.setEnabled(True)
     ui.deviceParameters.setEnabled(True)
     ui.calTable.setEnabled(True)
+    ui.measure.setEnabled(True)
+    ui.calibrate.setEnabled(True)
+
     attenuators.tm.setFilter('')
     attenuators.updateModel()
     parameters.tm.setFilter('')
