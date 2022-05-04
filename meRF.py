@@ -104,16 +104,15 @@ class Measurement():
                 ui.spiNoise.setText('SPI error detected')   # emit as a string signal for GUI
 
             self.dIn = (dIn[0] << 8) + dIn[1]  # shift first byte to be MSB of a 12-bit word and add second byte
+            self.buffer[i] = self.dIn
 
-            # use calibration nearest to the measurement frequency obtained from selectCal method
-            self.sensorPower = (self.dIn/calibration.slope) + calibration.intercept
+            # if self.sensorPower >= 12 and self.dIn != 0:  # sensor absolute maximum input level exceeded
+            #     ui.sensorOverload.setText('Sensor rating exceeded')  # emit this as string from worker thread for GUI
 
-            self.buffer[i] = self.sensorPower
+        # use calibration nearest to the measurement frequency obtained from selectCal method
+        self.buffer = (self.buffer/calibration.slope) + (calibration.intercept)
 
-            if self.sensorPower >= 12 and self.dIn != 0:  # sensor absolute maximum input level exceeded
-                ui.sensorOverload.setText('Sensor rating exceeded')  # emit this as string from worker thread for GUI
-
-        # Shift Register - this limits sample rate.  Numpy roll is faster than collections.deque
+        # Shift Register - this limits sample rate.  Numpy roll is faster than collections.deque and slicing
         self.yAxis = np.roll(self.yAxis, -25)
         self.yAxis[-25:] = self.buffer
         self.counter += 25
@@ -140,7 +139,7 @@ class Measurement():
         # convert dBm to Watts and update analogue meter scale
         meter_dB = self.powerdBm - dBm[meterRange]  # ref to the max value for each range, i.e. 1000 units
         self.powerW = 10 ** (meter_dB / 10)  # dB to 'unit' Watts
-        if ui.Scale.currentText() == 'Auto':  # future manual setting method to add
+        if ui.Scale.value() == 7:  # future manual setting method to add
             ui.meterWidget.set_MaxValue(1000)
             if self.powerW <= 10:
                 ui.meterWidget.set_MaxValue(10)
@@ -156,7 +155,7 @@ class Measurement():
         powerCurve.setData(meter.xAxis, self.yAxis)
 
     def setTimebase(self):
-        self.samples = ui.memorySize.value()
+        self.samples = ui.memorySize.value() * 1000
         self.xAxis = np.arange(self.samples, dtype=int)  # test
         self.yAxis = np.full(self.samples, -75, dtype=float)  # test
 
@@ -464,7 +463,7 @@ ui.meterWidget.set_total_scale_angle_size(270)
 
 # adjust pyqtgraph settings for power vs time display
 red = pyqtgraph.mkPen(color='r', width=1.0)
-blue = pyqtgraph.mkPen(color='c', width=1.0)
+blue = pyqtgraph.mkPen(color='c', width=0.5, style=QtCore.Qt.DashLine)
 yellow = pyqtgraph.mkPen(color='y', width=1.0)
 ui.graphWidget.setYRange(-60, 10)
 ui.graphWidget.setBackground('k')  # black
@@ -477,8 +476,8 @@ ui.graphWidget.setLabel('bottom', 'Power Measurement', 'Samples')
 powerCurve = ui.graphWidget.plot([], [], name='Sensor', pen=yellow, width=1)
 
 # populate combo boxes
-ui.Scale.addItems(['Auto'])  # future - addition of manual settings
-ui.Scale.itemText(0)
+# ui.Scale.addItems(['Auto'])  # future - addition of manual settings
+# ui.Scale.itemText(0)
 
 # Connect signals from buttons
 
