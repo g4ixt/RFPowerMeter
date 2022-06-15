@@ -135,7 +135,7 @@
            <enum>QAbstractSpinBox::NoButtons</enum>
           </property>
           <property name="suffix">
-           <string/>
+           <string>sps</string>
           </property>
           <property name="decimals">
            <number>0</number>
@@ -1191,7 +1191,7 @@
      <x>0</x>
      <y>0</y>
      <width>1082</width>
-     <height>32</height>
+     <height>22</height>
     </rect>
    </property>
   </widget>
