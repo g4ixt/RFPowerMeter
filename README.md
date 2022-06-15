@@ -6,7 +6,8 @@ The AD8318 Digital RF Power Detector pcb is by made by SV1AFN and communicates w
 
 ![image](/Pictures/Screenshot_20220615_161224.png)
 
-# Note: the AD7887 ADC is operating at 5V, this should not be directly connected to the Pi GPIO which operates at 3.3V.  I changed R5 to 180R and put a 3.3V zener across C9 - soldered directly across pins 2 and 3 of the IC - that will drop Vdd to 3.3V for the AD7887 only.  See picture.
+# Note
+The AD7887 ADC is operating at 5V, this should not be directly connected to the Pi GPIO which operates at 3.3V.  I changed R5 to 180R and put a 3.3V zener across C9 - soldered directly across pins 2 and 3 of the IC - that will drop Vdd to 3.3V for the AD7887 only.  See picture.
 
 Tested on Raspberry Pi3b running a clean installation of 32-bit Raspbian Buster 5.10.63-v7+
 
