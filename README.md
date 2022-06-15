@@ -1,6 +1,6 @@
 # RF Power Meter
 
-Python AD8318 RF Power Meter application for the Raspberry Pi using a PyQT5 GUI.
+Python AD8318 RF Power Meter application for the Raspberry Pi using a PyQT5 GUI.  Now multi-threaded and capable of about 7,000 measurements per second.
 
 A RF Power Meter programme in Python using the AD8318 Digital RF Power Detector pcb by made by SV1AFN, communicating with the Pi using SPI.
 Calibration and Attenuator data is stored in a sqlite database.
@@ -51,8 +51,5 @@ Enter '1' in the 'inUse' column to have attenuator or couplers included in the p
 To do:
 More instructions
 Improve calibrate and attenuator tabs.  They work but not without quirks.
-
-SPI errors:
-Connecting things seems to cause the Pi to get stuck with SPI errors.  I don't yet know why or how to fix this.  The programme will run for hours measuring power without any problems.  If SPI errors get stuck, turn off the power to the sensor, reboot the Pi and turn on the sensor power again once the programme is running.
 
 I added an electrolytic and 10nF decoupling capacitors to the sensor power line and this made significant improvements to 'noise' spi measurements, essentially eliminating them.  I also removed the paint on the enclosure lids and end caps to improve grounding.  Running it from a battery made no difference.
