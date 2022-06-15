@@ -1,6 +1,6 @@
 # RF Power Meter
 
-Python AD8318 RF Power Meter application for the Raspberry Pi using a PyQT5 GUI.  Now multi-threaded and capable of about 7,000 measurements per second.
+Python AD8318 RF Power Meter application for the Raspberry Pi using a PyQT5 GUI.  Now multi-threaded and capable of over 7,000 measurements per second.
 
 A RF Power Meter programme in Python using the AD8318 Digital RF Power Detector pcb by made by SV1AFN, communicating with the Pi using SPI.
 Calibration and Attenuator data is stored in a sqlite database.
@@ -32,8 +32,10 @@ cd RFPowerMeter
 python3 meRF.py
 
 Enter the frequency on the display tab and press 'run'.
-The 'averaging' setting affects the analogue gauge meter and how often the GUI is updated.  If set too low, updating the GUI dramatically slows down the readings.
-The 'memory length' setting controls the number of points shown on the moving graph and can be set up to maximum of 100,000 (for no particular reason).
+The 'averaging' setting affects the analogue gauge meter only.
+The 'memory depth' setting controls the number of points shown on the moving graph and can be set up to maximum of 100,000 (for no particular reason).
+  
+You can zoom in and out of either axis on the moving graph, using the mouse, with or without measurements running.  To restore click on the 'A' on bottom left corner of graph.  This is a standard feature provided by pyqtgraph.
 
 To calibrate:
 Enter the frequency and the known powers 'cal high' and cal low' in dBm.  Feed sensor with the known 'high' power, select 'high code' and press measure.  Similar for the known low power.
