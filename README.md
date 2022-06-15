@@ -6,10 +6,12 @@ The AD8318 Digital RF Power Detector pcb is by made by SV1AFN and communicates w
 
 ![image](/Pictures/Screenshot_20220615_161224.png)
 
-# Note: The AD7887 ADC is operating at 5V, this should not be directly connected to the Pi GPIO which operates at 3.3V.
+# Note: The AD7887 ADC has a 5V supply.  It must not be directly connected to the Pi GPIO SPI which operates at 3.3V.
+I changed R5 to 180R and put a 3.3V zener diode across C9 (soldered directly across pins 2 and 3 of the AD7887) to reduce Vdd to 3.3V.  See picture.
 
-I changed R5 to 180R and put a 3.3V zener diode across C9 - soldered directly across pins 2 and 3 of the AD7887 - this drops Vdd to 3.3V.  See picture.
+I also added an electrolytic and 10nF decoupling capacitors to the sensor power line and this made significant improvements to 'noise' spi measurements, essentially eliminating them.  I also removed the paint on the enclosure lids and end caps to improve grounding.  Running it from a battery made no difference.
 
+# Install and run
 Tested on Raspberry Pi3b running a clean installation of 32-bit Raspbian Buster 5.10.63-v7+
 
 Dependencies: Install from the repository - python3-pyqt5, python3-numpy, python3-spidev, python3-pyqtgraph
@@ -36,7 +38,7 @@ The 'memory depth' setting controls the number of points shown on the moving gra
   
 You can zoom in and out of either axis on the moving graph, using the mouse, with or without measurements running.  To restore, click on the 'A' on bottom left corner of graph.  This is a standard feature provided by pyqtgraph.
 
-To calibrate:
+# Calibration
 Enter the frequency and the known powers 'cal high' and cal low' in dBm.  Feed sensor with the known 'high' power, select 'high code' and press measure.  Similar for the known low power.
   
 You have to tab out of the row to get the database to update.
@@ -45,13 +47,11 @@ Once both values are measured, click in the row and press the calibrate button
 
 The slope and intercept should populate.
 
-To add attenuators or couplers:
+# Adding attenuators or couplers:
 Add a row in the 'devices' table, enter details, tab or click in another row.
 Add a row or import s2p for the selected device and tab or click another row.
 Enter '1' in the 'inUse' column to have attenuator or couplers included in the power calculation on the display tab.
 
-To do:
-More instructions
+# To do
+Better instructions
 Improve calibrate and attenuator tabs.  They work but not without quirks.
-
-I added an electrolytic and 10nF decoupling capacitors to the sensor power line and this made significant improvements to 'noise' spi measurements, essentially eliminating them.  I also removed the paint on the enclosure lids and end caps to improve grounding.  Running it from a battery made no difference.
