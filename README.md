@@ -1,3 +1,5 @@
+![image](/Pictures/Screenshot_20220615_161224.png)
+
 # RF Power Meter
 
 Python AD8318 RF Power Meter application for the Raspberry Pi using a PyQT5 GUI.  Now multi-threaded and capable of over 7,000 measurements per second.
