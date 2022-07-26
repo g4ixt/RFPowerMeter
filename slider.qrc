@@ -1,0 +1,5 @@
+<RCC>
+  <qresource prefix="newPrefix">
+    <file>slider.qrc</file>
+  </qresource>
+</RCC>

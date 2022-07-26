@@ -28,8 +28,11 @@ spi = spidev.SpiDev()
 dOut = 0b00100000  # power down when CS high
 
 # Meter scale values
-Units = ['pW', 'nW', 'uW', 'mW', 'W', 'kW']
-dBm = [-90, -60, -30, 0, 30, 60]
+Units = ['nW', 'uW', 'mW', 'W']
+dBm = [-60, -30, 0, 30]
+
+# Frequency radio button values
+fBand = [14, 50, 70, 144, 432, 1296, 2320, 3400, 5650]
 
 
 ##############################################################################
@@ -92,16 +95,14 @@ class Measurement():
         self.threadpool = QThreadPool()
         print("Multithreading with %d threads" % self.threadpool.maxThreadCount())
 
-
     def readSPI(self):
         # dOut is data sent from the Pi to the AD7887, i.e. MOSI.
         # dIn is the RF power measurement result, i.e. MISO.
-        # This method runs in a separate Thread for performance reasons
+        # This runs in separate Thread for performance, and samples power 25 times, storing results in a buffer
         for i in range(25):
             dIn = spi.xfer([dOut, dOut])  # AD7882 is 12 bit but Pi SPI only 8 bit so two bytes needed
-
             if dIn[0] > 13:  # anything > 13 is due to noise or spi errors
-                ui.spiNoise.setText('SPI error detected')   # emit as a string signal for GUI
+                ui.spiNoise.setText('SPI error')   # emit as a string signal for GUI
 
             self.dIn = (dIn[0] << 8) + dIn[1]  # shift first byte to be MSB of a 12-bit word and add second byte
             self.buffer[i] = self.dIn
@@ -112,11 +113,10 @@ class Measurement():
         # use calibration nearest to the measurement frequency obtained from selectCal method
         self.buffer = (self.buffer/calibration.slope) + (calibration.intercept)
 
-        # Shift Register - this limits sample rate.  Numpy roll is faster than collections.deque and slicing
+        # Append buffer to Shift Register - slows sample rate.  Numpy roll faster than collections.deque and slicing
         self.yAxis = np.roll(self.yAxis, -25)
         self.yAxis[-25:] = self.buffer
         self.counter += 25
-
 
     def updateGUI(self):
         self.averagePower = np.average(self.yAxis[-self.averages:])
@@ -128,16 +128,12 @@ class Measurement():
 
         # update power meter range and label
         try:
-            meterRange = next(x for x, val in enumerate(dBm) if val > self.powerdBm)
-            if meterRange > 0:
-                meterRange += -1
-            ui.powerUnit.setText(str(Units[meterRange]))
-            ui.powerWatts.setSuffix(str(Units[meterRange]))
-        except StopIteration:
-            ui.spiNoise.setText('SPI error detected')
+            self.setRange()
+        except StopIteration:  # will this still work?
+            return
 
         # convert dBm to Watts and update analogue meter scale
-        meter_dB = self.powerdBm - dBm[meterRange]  # ref to the max value for each range, i.e. 1000 units
+        meter_dB = self.powerdBm - dBm[self.meterRange]  # ref to the max value for each range, i.e. 1000 units
         self.powerW = 10 ** (meter_dB / 10)  # dB to 'unit' Watts
         if ui.Scale.value() == 7:  # future manual setting method to add
             ui.meterWidget.set_MaxValue(1000)
@@ -146,7 +142,7 @@ class Measurement():
             if self.powerW >= 10 and self.powerW <= 100:
                 ui.meterWidget.set_MaxValue(100)
 
-        # update the analog gauge widget
+        # update the analogue gauge widget
         ui.meterWidget.update_value(self.powerW, mouse_controlled=False)
         ui.powerWatts.setValue(self.powerW)
         ui.measurementRate.setValue(self.rate)
@@ -158,6 +154,27 @@ class Measurement():
         self.samples = ui.memorySize.value() * 1000
         self.xAxis = np.arange(self.samples, dtype=int)  # test
         self.yAxis = np.full(self.samples, -75, dtype=float)  # test
+
+    def setRange(self): # broken. - also needs to work when meter not running
+        if ui.Scale.value() == 'AutoScale':
+            try:
+                self.meterRange = next(x for x, val in enumerate(dBm) if val > self.powerdBm)
+                if self.meterRange > 0:
+                    self.meterRange += -1
+                ui.powerUnit.setText(str(Units[self.meterRange]))
+                ui.powerWatts.setSuffix(str(Units[self.meterRange]))
+            except StopIteration:
+                ui.spiNoise.setText('SPI error')
+                meter.timer.stop()  # stops the measurement worker thread - it loops when timer is active
+                popUp('Sensor missing, not powered, or faulty', 'OK')
+                stopMeter()
+                return
+        else:
+            # set the meter range if not auto
+            ui.powerUnit.setText('Watts')
+            ui.powerWatts.setSuffix('W')
+            ui.meterWidget.set_MaxValue(10)
+            self.meterRange = 4
 
 
 class modelView():
@@ -388,7 +405,7 @@ def startMeter():
         popUp('No SPI device found', 'OK')
     else:
         # disable settings buttons and start measuring if spi device present
-        ui.sensorOverload.setText('')
+        # ui.sensorOverload.setText('')
         ui.spiNoise.setText('')
         ui.browseDevices.setEnabled(False)
         ui.deviceParameters.setEnabled(False)
@@ -416,6 +433,13 @@ def readMeter():
 def stopMeter():
     meter.timer.stop()
 
+    # update the analog gauge widget
+    ui.meterWidget.update_value(0, mouse_controlled=False)
+    ui.powerWatts.setValue(0)
+    ui.measurementRate.setValue(0)
+    ui.sensorPower.setValue(-70)
+    ui.inputPower.setValue(-70)
+
     ui.browseDevices.setEnabled(True)
     ui.deviceParameters.setEnabled(True)
     ui.calTable.setEnabled(True)
@@ -428,6 +452,41 @@ def stopMeter():
     parameters.updateModel()
     spi.close()
 
+
+def slidersMoved():
+    if meter.timer.isActive():
+        stopMeter()
+        startMeter()
+
+
+def freqChanged():
+    if meter.timer.isActive():
+        stopMeter()
+        startMeter()
+    else:
+        test()
+    # deselect band radio buttons
+    if ui.hamBands.checkedId() != -11:
+        ui.GHzSlider.setEnabled(False)
+        ui.freqBox.setEnabled(False)
+
+
+
+def bandSelect():
+    buttonID = ui.hamBands.checkedId()
+    if buttonID == -11:
+        ui.GHzSlider.setEnabled(True)
+        ui.freqBox.setEnabled(True)
+        return
+    buttonID = (-buttonID)-2  # exclusive group button index starts at -2 and decreases. Convert to list index.
+    ui.GHzSlider.setValue(fBand[buttonID])
+    ui.freqBox.setValue(fBand[buttonID])
+
+
+def test():
+    print("hello")
+    sumLosses()
+    attenuators.tm.setFilter('')
 
 ##############################################################################
 # instantiate classes
@@ -469,17 +528,16 @@ ui.graphWidget.setYRange(-60, 10)
 ui.graphWidget.setBackground('k')  # black
 ui.graphWidget.showGrid(x=True, y=True)
 ui.graphWidget.addLine(y=10, movable=False, pen=red, label='max', labelOpts={'position':0.05, 'color':('r')})
-ui.graphWidget.addLine(y=-5, movable=False, pen=blue, label='<', labelOpts={'position':0.025, 'color':('c')})
-ui.graphWidget.addLine(y=-50, movable=False, pen=blue, label='>', labelOpts={'position':0.025, 'color':('c')})
+ui.graphWidget.addLine(y=-5, movable=False, pen=blue, label='', labelOpts={'position':0.025, 'color':('c')})
+ui.graphWidget.addLine(y=-50, movable=False, pen=blue, label='', labelOpts={'position':0.025, 'color':('c')})
 ui.graphWidget.setLabel('left', 'Sensor Power', 'dBm')
 ui.graphWidget.setLabel('bottom', 'Power Measurement', 'Samples')
 powerCurve = ui.graphWidget.plot([], [], name='Sensor', pen=yellow, width=1)
 
-# populate combo boxes
-# ui.Scale.addItems(['Auto'])  # future - addition of manual settings
-# ui.Scale.itemText(0)
-
 # Connect signals from buttons
+
+# update display screen attenuation when tabs changed - better to do this in model section?
+ui.tabWidget.currentChanged.connect(test)
 
 # attenuators, couplers and cables
 ui.addDevice.clicked.connect(attenuators.addRow)
@@ -498,6 +556,12 @@ ui.calibrate.clicked.connect(calibrate)
 # start and stop
 ui.runButton.clicked.connect(startMeter)
 ui.stopButton.clicked.connect(stopMeter)
+
+# touchscreen controls
+ui.freqBox.valueChanged.connect(freqChanged)
+ui.memorySize.valueChanged.connect(slidersMoved)
+ui.averaging.valueChanged.connect(slidersMoved)
+ui.hamBands.buttonClicked.connect(bandSelect)
 
 
 ##############################################################################
@@ -521,7 +585,7 @@ attenuators.showParameters
 meter.timer.timeout.connect(readMeter)  # A Qtimer defined in the Measurement Class init
 
 window.show()
-window.setWindowTitle('Qt Power Meter')
+# window.setWindowTitle('Qt Power Meter')
 
 # run the application until the user closes it
 
