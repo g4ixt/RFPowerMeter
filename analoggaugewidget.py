@@ -136,7 +136,7 @@ class AnalogGaugeWidget(QWidget):
 
         # self.scala_main_count = 10
         self.set_scala_main_count(10)
-        self.scala_subdiv_count = 5
+        self.scala_subdiv_count = 5  # was 5 ipj
 
         self.pen = QPen(QColor(0, 0, 0))
         self.font = QFont('Decorative', 20)

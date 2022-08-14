@@ -16,6 +16,7 @@ from PyQt5.QtWidgets import QMessageBox, QFileDialog
 from PyQt5.QtSql import QSqlDatabase, QSqlTableModel
 import spidev
 import pyqtgraph
+import math
 # from collections import deque
 
 import QtPowerMeter
@@ -28,8 +29,8 @@ spi = spidev.SpiDev()
 dOut = 0b00100000  # power down when CS high
 
 # Meter scale values
-Units = ['nW', 'uW', 'mW', 'W']
-dBm = [-60, -30, 0, 30]
+Units = [' nW', ' uW', ' mW', ' W', ' kW']
+dB = [-60, -30, 0, 30, 60, 90]
 
 # Frequency radio button values
 fBand = [14, 50, 70, 144, 432, 1296, 2320, 3400, 5650]
@@ -120,27 +121,32 @@ class Measurement():
 
     def updateGUI(self):
         self.averagePower = np.average(self.yAxis[-self.averages:])
-        self.powerdBm = self.averagePower - attenuators.loss  # subtract total loss of couplers and attenuators
+        self.measuredPdBm = self.averagePower - attenuators.loss  # subtract total loss of couplers and attenuators
 
         # uses the average powers apart from the moving graph, which uses the individual measurements
         ui.sensorPower.setValue(self.averagePower)
-        ui.inputPower.setValue(self.powerdBm)
+        ui.inputPower.setValue(self.measuredPdBm)
 
         # update power meter range and label
-        try:
-            self.setRange()
-        except StopIteration:  # will this still work?
-            return
+        if ui.autoRangeButton.isChecked():
+            try:
+                self.autoRange()
+            except StopIteration:
+                ui.spiNoise.setText('SPI error')
+                meter.timer.stop()  # stops the measurement worker thread - it loops when timer is active
+                popUp('Sensor missing, not powered, or faulty', 'OK')
+                stopMeter()
+                return
+        else:
+            self.userRange()
 
-        # convert dBm to Watts and update analogue meter scale
-        meter_dB = self.powerdBm - dBm[self.meterRange]  # ref to the max value for each range, i.e. 1000 units
-        self.powerW = 10 ** (meter_dB / 10)  # dB to 'unit' Watts
-        if ui.Scale.value() == 7:  # future manual setting method to add
-            ui.meterWidget.set_MaxValue(1000)
-            if self.powerW <= 10:
-                ui.meterWidget.set_MaxValue(10)
-            if self.powerW >= 10 and self.powerW <= 100:
-                ui.meterWidget.set_MaxValue(100)
+        self.powerW = 10 ** ((self.measuredPdBm - dB[self.range]) / 10)  # dBm to Watts
+        # convert it to display according to meter range selected
+        ui.meterWidget.set_MaxValue(1000)
+        if self.powerW <= 10:
+            ui.meterWidget.set_MaxValue(10)
+        if self.powerW >= 10 and self.powerW <= 100:
+            ui.meterWidget.set_MaxValue(100)
 
         # update the analogue gauge widget
         ui.meterWidget.update_value(self.powerW, mouse_controlled=False)
@@ -155,26 +161,19 @@ class Measurement():
         self.xAxis = np.arange(self.samples, dtype=int)  # test
         self.yAxis = np.full(self.samples, -75, dtype=float)  # test
 
-    def setRange(self): # broken. - also needs to work when meter not running
-        if ui.Scale.value() == 'AutoScale':
-            try:
-                self.meterRange = next(x for x, val in enumerate(dBm) if val > self.powerdBm)
-                if self.meterRange > 0:
-                    self.meterRange += -1
-                ui.powerUnit.setText(str(Units[self.meterRange]))
-                ui.powerWatts.setSuffix(str(Units[self.meterRange]))
-            except StopIteration:
-                ui.spiNoise.setText('SPI error')
-                meter.timer.stop()  # stops the measurement worker thread - it loops when timer is active
-                popUp('Sensor missing, not powered, or faulty', 'OK')
-                stopMeter()
-                return
-        else:
-            # set the meter range if not auto
-            ui.powerUnit.setText('Watts')
-            ui.powerWatts.setSuffix('W')
-            ui.meterWidget.set_MaxValue(10)
-            self.meterRange = 4
+    def autoRange(self):
+        # determine if the power units are nW, uW, mW, or W
+        self.range = next(index for index, listValue in enumerate(dB) if listValue > self.measuredPdBm)
+        if self.range > 0:
+            self.range += -1
+        ui.powerUnit.setText(str(Units[self.range]))
+        ui.powerWatts.setSuffix(str(Units[self.range]))
+
+    def userRange(self):
+        # set the units from the main steps of the slider
+        self.range = ui.rangeSlider.value()
+        ui.powerUnit.setText(Units[int(self.range)])
+        ui.powerWatts.setSuffix(Units[int(self.range)])
 
 
 class modelView():
@@ -308,7 +307,7 @@ def selectCal():
             difference = abs(ui.freqBox.value()-calRecord.value('Freq MHz'))
             calibration.slope = calRecord.value('Slope')
             calibration.intercept = calRecord.value('Intercept')
-            ui.calQualLabel.setText(calRecord.value('CalQuality'))
+            ui.calQualLabel.setText(calRecord.value('CalQuality') + " " + str(int(calRecord.value('Freq MHz'))) + "MHz")
 
 
 def popUp(message, button):
@@ -464,12 +463,11 @@ def freqChanged():
         stopMeter()
         startMeter()
     else:
-        test()
+        userFreq()
     # deselect band radio buttons
     if ui.hamBands.checkedId() != -11:
         ui.GHzSlider.setEnabled(False)
         ui.freqBox.setEnabled(False)
-
 
 
 def bandSelect():
@@ -483,10 +481,17 @@ def bandSelect():
     ui.freqBox.setValue(fBand[buttonID])
 
 
-def test():
-    print("hello")
+def userFreq():
     sumLosses()
+    selectCal()
     attenuators.tm.setFilter('')
+
+
+def rangeSelect():
+    if ui.setRangeButton.isChecked():
+        ui.rangeSlider.setEnabled(True)
+    else:
+        ui.rangeSlider.setEnabled(False)
 
 ##############################################################################
 # instantiate classes
@@ -513,12 +518,14 @@ ui.setupUi(window)
 
 # adjust analog gauge meter
 ui.meterWidget.set_MaxValue(10)
+
 ui.meterWidget.set_enable_CenterPoint(enable=False)
-ui.meterWidget.set_enable_barGraph(enable=False)
+ui.meterWidget.set_enable_barGraph(enable=True)
 ui.meterWidget.set_enable_value_text(enable=False)
-ui.meterWidget.set_enable_filled_Polygon(enable=False)
+ui.meterWidget.set_enable_filled_Polygon(enable=True)
 ui.meterWidget.set_start_scale_angle(90)
 ui.meterWidget.set_total_scale_angle_size(270)
+
 
 # adjust pyqtgraph settings for power vs time display
 red = pyqtgraph.mkPen(color='r', width=1.0)
@@ -536,8 +543,8 @@ powerCurve = ui.graphWidget.plot([], [], name='Sensor', pen=yellow, width=1)
 
 # Connect signals from buttons
 
-# update display screen attenuation when tabs changed - better to do this in model section?
-ui.tabWidget.currentChanged.connect(test)
+# update display attenuation when tabs changed
+ui.tabWidget.currentChanged.connect(userFreq)
 
 # attenuators, couplers and cables
 ui.addDevice.clicked.connect(attenuators.addRow)
@@ -562,7 +569,9 @@ ui.freqBox.valueChanged.connect(freqChanged)
 ui.memorySize.valueChanged.connect(slidersMoved)
 ui.averaging.valueChanged.connect(slidersMoved)
 ui.hamBands.buttonClicked.connect(bandSelect)
-
+ui.rangeSlider.valueChanged.connect(meter.userRange)
+ui.autoRangeButton.clicked.connect(rangeSelect)
+ui.setRangeButton.clicked.connect(rangeSelect)
 
 ##############################################################################
 # set up the application

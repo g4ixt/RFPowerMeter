@@ -329,7 +329,7 @@ Size</string>
          <number>1296</number>
         </property>
         <property name="tracking">
-         <bool>true</bool>
+         <bool>false</bool>
         </property>
         <property name="orientation">
          <enum>Qt::Horizontal</enum>
@@ -377,7 +377,10 @@ Size</string>
             <string> dB</string>
            </property>
            <property name="decimals">
-            <number>1</number>
+            <number>2</number>
+           </property>
+           <property name="maximum">
+            <double>120.000000000000000</double>
            </property>
            <property name="singleStep">
             <double>0.010000000000000</double>
@@ -428,7 +431,7 @@ Size</string>
             <double>-70.000000000000000</double>
            </property>
            <property name="maximum">
-            <double>60.000000000000000</double>
+            <double>63.000000000000000</double>
            </property>
            <property name="singleStep">
             <double>0.010000000000000</double>
@@ -488,7 +491,7 @@ Size</string>
             </font>
            </property>
            <property name="text">
-            <string>Power at Sensor</string>
+            <string>Sensor Power</string>
            </property>
            <property name="alignment">
             <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
@@ -518,7 +521,7 @@ Size</string>
             <enum>QAbstractSpinBox::NoButtons</enum>
            </property>
            <property name="suffix">
-            <string> W</string>
+            <string> nW</string>
            </property>
            <property name="decimals">
             <number>1</number>
@@ -527,7 +530,7 @@ Size</string>
             <double>0.000000000000000</double>
            </property>
            <property name="maximum">
-            <double>1000.000000000000000</double>
+            <double>10000.000000000000000</double>
            </property>
            <property name="singleStep">
             <double>0.010000000000000</double>
@@ -563,7 +566,7 @@ Size</string>
             </font>
            </property>
            <property name="text">
-            <string>Calibration Source:</string>
+            <string>Calibration</string>
            </property>
            <property name="alignment">
             <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
@@ -917,23 +920,26 @@ Size</string>
          <string notr="true">dBmRange</string>
         </attribute>
        </widget>
-       <widget class="QRadioButton" name="manualRangeButton">
+       <widget class="QRadioButton" name="setRangeButton">
         <property name="geometry">
          <rect>
           <x>70</x>
           <y>380</y>
-          <width>71</width>
+          <width>101</width>
           <height>23</height>
          </rect>
         </property>
         <property name="text">
-         <string>Manual</string>
+         <string>Set Range</string>
         </property>
         <attribute name="buttonGroup">
          <string notr="true">dBmRange</string>
         </attribute>
        </widget>
-       <widget class="QSlider" name="horizontalSlider">
+       <widget class="QSlider" name="rangeSlider">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
         <property name="geometry">
          <rect>
           <x>10</x>
@@ -943,70 +949,28 @@ Size</string>
          </rect>
         </property>
         <property name="minimum">
-         <number>-60</number>
+         <number>0</number>
         </property>
         <property name="maximum">
-         <number>60</number>
+         <number>4</number>
         </property>
         <property name="singleStep">
-         <number>10</number>
+         <number>1</number>
         </property>
         <property name="pageStep">
-         <number>30</number>
+         <number>1</number>
         </property>
         <property name="sliderPosition">
-         <number>-60</number>
+         <number>0</number>
+        </property>
+        <property name="tracking">
+         <bool>false</bool>
         </property>
         <property name="orientation">
          <enum>Qt::Horizontal</enum>
         </property>
         <property name="tickPosition">
          <enum>QSlider::TicksBothSides</enum>
-        </property>
-       </widget>
-       <widget class="QSpinBox" name="rangeBox">
-        <property name="enabled">
-         <bool>false</bool>
-        </property>
-        <property name="geometry">
-         <rect>
-          <x>150</x>
-          <y>380</y>
-          <width>71</width>
-          <height>21</height>
-         </rect>
-        </property>
-        <property name="font">
-         <font>
-          <pointsize>9</pointsize>
-         </font>
-        </property>
-        <property name="frame">
-         <bool>false</bool>
-        </property>
-        <property name="alignment">
-         <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
-        </property>
-        <property name="buttonSymbols">
-         <enum>QAbstractSpinBox::NoButtons</enum>
-        </property>
-        <property name="keyboardTracking">
-         <bool>false</bool>
-        </property>
-        <property name="suffix">
-         <string> dBm</string>
-        </property>
-        <property name="minimum">
-         <number>-60</number>
-        </property>
-        <property name="maximum">
-         <number>60</number>
-        </property>
-        <property name="singleStep">
-         <number>10</number>
-        </property>
-        <property name="value">
-         <number>-60</number>
         </property>
        </widget>
       </widget>
