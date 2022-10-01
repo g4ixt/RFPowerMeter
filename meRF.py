@@ -16,8 +16,6 @@ from PyQt5.QtWidgets import QMessageBox, QFileDialog
 from PyQt5.QtSql import QSqlDatabase, QSqlTableModel
 import spidev
 import pyqtgraph
-import math
-# from collections import deque
 
 import QtPowerMeter
 from touchstone_subset import Touchstone
@@ -518,7 +516,6 @@ ui.setupUi(window)
 
 # adjust analog gauge meter
 ui.meterWidget.set_MaxValue(10)
-
 ui.meterWidget.set_enable_CenterPoint(enable=False)
 ui.meterWidget.set_enable_barGraph(enable=True)
 ui.meterWidget.set_enable_value_text(enable=False)
@@ -594,7 +591,6 @@ attenuators.showParameters
 meter.timer.timeout.connect(readMeter)  # A Qtimer defined in the Measurement Class init
 
 window.show()
-# window.setWindowTitle('Qt Power Meter')
 
 # run the application until the user closes it
 
