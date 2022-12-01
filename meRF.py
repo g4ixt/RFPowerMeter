@@ -12,13 +12,13 @@ Python package for RF and Microwave applications.
 import numpy as np
 from PyQt5 import QtWidgets, QtCore
 from PyQt5.QtCore import pyqtSlot, QObject, QRunnable, QThreadPool, pyqtSignal
-from PyQt5.QtWidgets import QMessageBox, QFileDialog
+from PyQt5.QtWidgets import QMessageBox, QFileDialog, QDataWidgetMapper
 from PyQt5.QtSql import QSqlDatabase, QSqlTableModel
 import spidev
 import pyqtgraph
 
-import QtPowerMeter
-from touchstone_subset import Touchstone
+import QtPowerMeter  # the GUI
+from touchstone_subset import Touchstone  # for importing S2P files
 
 spi = spidev.SpiDev()
 
@@ -101,7 +101,7 @@ class Measurement():
         for i in range(25):
             dIn = spi.xfer([dOut, dOut])  # AD7882 is 12 bit but Pi SPI only 8 bit so two bytes needed
             if dIn[0] > 13:  # anything > 13 is due to noise or spi errors
-                ui.spiNoise.setText('SPI error')   # emit as a string signal for GUI
+                ui.spiNoise.setText('SPI error')   # future: emit as a string signal for GUI
 
             self.dIn = (dIn[0] << 8) + dIn[1]  # shift first byte to be MSB of a 12-bit word and add second byte
             self.buffer[i] = self.dIn
@@ -112,7 +112,7 @@ class Measurement():
         # use calibration nearest to the measurement frequency obtained from selectCal method
         self.buffer = (self.buffer/calibration.slope) + (calibration.intercept)
 
-        # Append buffer to Shift Register - slows sample rate.  Numpy roll faster than collections.deque and slicing
+        # Append buffer to Shift Register - slows sample rate.  Numpy roll is faster than collections.deque and slicing
         self.yAxis = np.roll(self.yAxis, -25)
         self.yAxis[-25:] = self.buffer
         self.counter += 25
@@ -189,7 +189,10 @@ class modelView():
         self.tm = QSqlTableModel()
         self.tm.setTable(self.table)
         self.tm.setEditStrategy(QSqlTableModel.OnRowChange)
-        self.tm.select()
+        # self.tm.select()  # move to instantiate section
+        self.dwm = QDataWidgetMapper()
+        self.dwm.setModel(self.tm)
+        # self.dwm.SubmitPolicy(0)
 
     def addRow(self):  # add a single blank row
         record = self.tm.record()
@@ -231,6 +234,74 @@ class modelView():
         # model must be re-populated when python code changes data
         self.tm.select()
         self.tm.layoutChanged.emit()
+
+    def nextDevice(self):  # user selected next device using arrow button
+        self.dwm.toNext()
+        # self.id = self.tm.record(self.dwm.currentIndex()).value('AssetID')  # get the new Device number from the table
+        parameters.showValues()
+
+    def prevDevice(self):  # user selected previous device using arrow button
+        self.dwm.toPrevious()
+        # self.id = self.tm.record(self.dwm.currentIndex()).value('AssetID')  # get the new Device number from the table
+        parameters.showValues()
+
+    def nextValue(self):  # user selected next device using arrow button
+        self.dwm.toNext()
+
+    def prevValue(self):  # user selected previous device using arrow button
+        self.dwm.toPrevious()
+
+    # def specificRecord(self):  # user has dragged the marker
+    #     x = 0
+
+    def showValues(self):
+        fValue = []
+        lValue = []
+        parameters.tm.setFilter('AssetID =' + str(ui.assetID.value()))
+        print(ui.assetID.value())
+        parameters.tm.sort(1, QtCore.Qt.AscendingOrder)
+        parameters.tm.select()
+        parameters.dwm.toFirst()
+
+        # iterate through selected values and display on graph
+        for i in range(0, parameters.tm.rowCount()):
+            fValue.append(parameters.tm.record(i).value('Freq MHz'))
+            lValue.append(parameters.tm.record(i).value('Value dB'))
+        deviceCurve.setData(fValue, lValue)
+
+# class Marker():
+#     '''Create markers for GUI using infinite lines'''
+
+#     def __init__(self, markerType, markerValue, labelPosition):
+#         self.Value = markerValue
+#         self.lPos = labelPosition
+#         self.line = ui.graphWidget.addLine()
+
+#     def createLine(self):
+#         markerPen = pyqtgraph.mkPen(color='g', width=0.5)
+#         if self.Type == 'freq':
+#             self.line = ui.graphWidget.addLine(x=self.Value, movable=True, pen=markerPen, label="{value:.2f}")
+#         else:
+#             self.line = ui.graphWidget.addLine(y=self.Value, movable=True, pen=markerPen, label="{value:.2f}")
+#         self.line.label.setPosition(self.lPos)
+
+#     def updateLine(self):
+#         # update line value and position to SpinBox settings
+#         Marker1.Value = ui.Marker1.value()
+#         Marker2.Value = ui.Marker2.value()
+#         Marker3.Value = ui.Marker3.value()
+#         Marker4.Value = ui.Marker4.value()
+#         Marker5.Value = ui.Marker5.value()
+#         self.line.setValue(self.Value)
+
+#     def updateSpinBox(self):
+#         # update spinboxes to values markers were dragged to
+#         ui.Marker1.setValue(Marker1.line.value())
+#         ui.Marker2.setValue(Marker2.line.value())
+#         ui.Marker3.setValue(Marker3.line.value())
+#         ui.Marker4.setValue(Marker4.line.value())
+#         ui.Marker5.setValue(Marker5.line.value())
+#         self.Value = self.line.value()
 
 
 ##############################################################################
@@ -491,6 +562,13 @@ def rangeSelect():
     else:
         ui.rangeSlider.setEnabled(False)
 
+
+def addFreqValue():
+    parameters.addRow()  # needs to add in the current attenuators.id
+    parameters.dwm.toLast()
+
+
+
 ##############################################################################
 # instantiate classes
 
@@ -498,16 +576,12 @@ config = database()
 config.connect()
 
 meter = Measurement()
-# high = Measurement()
-# low = Measurement()
-
 attenuators = modelView("Device")
 calibration = modelView("calibration")
 parameters = modelView("deviceParameters")
 
-
 ##############################################################################
-# interfaces to the GUI
+# GUI settings and interfaces
 
 app = QtWidgets.QApplication([])  # create QApplication for the GUI
 window = QtWidgets.QMainWindow()
@@ -523,7 +597,6 @@ ui.meterWidget.set_enable_filled_Polygon(enable=True)
 ui.meterWidget.set_start_scale_angle(90)
 ui.meterWidget.set_total_scale_angle_size(270)
 
-
 # adjust pyqtgraph settings for power vs time display
 red = pyqtgraph.mkPen(color='r', width=1.0)
 blue = pyqtgraph.mkPen(color='c', width=0.5, style=QtCore.Qt.DashLine)
@@ -538,6 +611,13 @@ ui.graphWidget.setLabel('left', 'Sensor Power', 'dBm')
 ui.graphWidget.setLabel('bottom', 'Power Measurement', 'Samples')
 powerCurve = ui.graphWidget.plot([], [], name='Sensor', pen=yellow, width=1)
 
+# adjust pyqtgraph settings for device parameters display
+ui.deviceGraph.setYRange(0, -40)  # user can zoom in if they want to
+ui.deviceGraph.setXRange(0, 3000)
+ui.deviceGraph.showGrid(x=True, y=True)
+ui.deviceGraph.addLine(x=0, movable=True, pen=red, label='freq', labelOpts={'position':0.05, 'color':('r')})
+deviceCurve = ui.deviceGraph.plot([], [], name='Parameters', pen=blue, width=2)
+
 # Connect signals from buttons
 
 # update display attenuation when tabs changed
@@ -546,11 +626,16 @@ ui.tabWidget.currentChanged.connect(userFreq)
 # attenuators, couplers and cables
 ui.addDevice.clicked.connect(attenuators.addRow)
 ui.deleteDevice.clicked.connect(delDevices)
+ui.nextDevice.clicked.connect(attenuators.nextDevice)
+ui.previousDevice.clicked.connect(attenuators.prevDevice)
+ui.nextFreq.clicked.connect(parameters.nextDevice)
+ui.previousFreq.clicked.connect(parameters.prevDevice)
+ui.addFreq.clicked.connect(addFreqValue)
 
 # calibration
 ui.addRow.clicked.connect(addParameter)
 ui.importS2P.clicked.connect(importS2P)
-ui.showParameters.clicked.connect(attenuators.showParameters)
+# ui.showParameters.clicked.connect(attenuators.showParameters)
 ui.deleteRow.clicked.connect(deleteParameter)
 ui.addCalData.clicked.connect(calibration.addRow)
 ui.deleteCal.clicked.connect(deleteCal)
@@ -570,23 +655,31 @@ ui.rangeSlider.valueChanged.connect(meter.userRange)
 ui.autoRangeButton.clicked.connect(rangeSelect)
 ui.setRangeButton.clicked.connect(rangeSelect)
 
+
 ##############################################################################
 # set up the application
 
-attenuators.createTableModel()
+attenuators.createTableModel()  # attenuator/coupler etc devices
+attenuators.dwm.addMapping(ui.assetID, 0)
+attenuators.dwm.addMapping(ui.description, 1)
+attenuators.dwm.addMapping(ui.partNum, 2)
+attenuators.dwm.addMapping(ui.identifier, 3)
+attenuators.dwm.addMapping(ui.maxPower, 4)
+attenuators.dwm.addMapping(ui.nominaldB, 5)
+attenuators.dwm.addMapping(ui.inUse, 8)
+attenuators.tm.select()
+attenuators.dwm.toFirst()
 
-ui.browseDevices.setModel(attenuators.tm)
-ui.browseDevices.setColumnHidden(0, True)  # hide Primary Key
-ui.browseDevices.resizeColumnToContents(1)
-ui.browseDevices.selectRow(0)
 calibration.createTableModel()
 ui.calTable.setModel(calibration.tm)
 
-parameters.createTableModel()
+parameters.createTableModel()  # loss vs frequency for each device
+parameters.dwm.addMapping(ui.freqIndex, 1)
+parameters.dwm.addMapping(ui.loss, 2)
+parameters.dwm.addMapping(ui.directivity, 3)
+parameters.tm.select()
+parameters.dwm.toFirst()
 
-ui.deviceParameters.setModel(parameters.tm)
-ui.deviceParameters.setColumnHidden(0, True)  # hide ID field
-attenuators.showParameters
 
 meter.timer.timeout.connect(readMeter)  # A Qtimer defined in the Measurement Class init
 
