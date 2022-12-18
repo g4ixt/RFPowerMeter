@@ -33,7 +33,7 @@
        <bool>false</bool>
       </property>
       <property name="currentIndex">
-       <number>2</number>
+       <number>0</number>
       </property>
       <widget class="QWidget" name="displayTab">
        <attribute name="title">
@@ -1787,6 +1787,9 @@ Size</string>
            </property>
            <property name="suffix">
             <string>MHz</string>
+           </property>
+           <property name="decimals">
+            <number>1</number>
            </property>
            <property name="maximum">
             <double>3000.000000000000000</double>

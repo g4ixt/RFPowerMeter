@@ -751,6 +751,7 @@ class Ui_MainWindow(object):
         font = QtGui.QFont()
         font.setPointSize(12)
         self.calFreq.setFont(font)
+        self.calFreq.setDecimals(1)
         self.calFreq.setMaximum(3000.0)
         self.calFreq.setSingleStep(10.0)
         self.calFreq.setObjectName("calFreq")
@@ -878,7 +879,7 @@ class Ui_MainWindow(object):
         MainWindow.setStatusBar(self.statusbar)
 
         self.retranslateUi(MainWindow)
-        self.tabWidget.setCurrentIndex(2)
+        self.tabWidget.setCurrentIndex(1)
         self.stopButton.clicked.connect(self.powerWatts.clear)
         self.GHzSlider.valueChanged['int'].connect(self.freqBox.setValue)
         self.freqBox.valueChanged['int'].connect(self.GHzSlider.setValue)
