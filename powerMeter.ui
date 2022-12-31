@@ -33,7 +33,7 @@
        <bool>false</bool>
       </property>
       <property name="currentIndex">
-       <number>1</number>
+       <number>2</number>
       </property>
       <widget class="QWidget" name="displayTab">
        <attribute name="title">
@@ -987,7 +987,7 @@ Size</string>
           <x>10</x>
           <y>10</y>
           <width>981</width>
-          <height>191</height>
+          <height>196</height>
          </rect>
         </property>
         <layout class="QGridLayout" name="gridLayout_2">
@@ -1510,7 +1510,7 @@ Size</string>
             <double>10.000000000000000</double>
            </property>
            <property name="value">
-            <double>3000.000000000000000</double>
+            <double>0.000000000000000</double>
            </property>
           </widget>
          </item>
