@@ -184,7 +184,7 @@ class modelView():
         self.tm = QSqlTableModel()
         self.dwm = QDataWidgetMapper()
         self.loss = 0
-        self.marker = self.graphName.addLine(pos=0, angle=90, movable=True, pen='g', label="{value:.2f}")
+        self.marker = self.graphName.addLine(0, 90, movable=True, pen='g', label="{value:.2f}")
         self.marker.label.setPosition(0.1)
         self.curve = self.graphName.plot([], [], name='', pen='r')
 
@@ -563,7 +563,7 @@ def activeButtons(tF):
     ui.saveCal.setEnabled(tF)
     ui.addCal.setEnabled(tF)
     ui.deleteCal.setEnabled(tF)
-
+    ui.inUse.setEnabled(tF)
 
 ###############################################################################
 # Instantiate classes
@@ -575,9 +575,9 @@ app = QtWidgets.QApplication([])  # create QApplication for the GUI
 window = QtWidgets.QMainWindow()
 ui = QtPowerMeter.Ui_MainWindow()
 ui.setupUi(window)
-attenuators = modelView("Device", ui.deviceGraph)
-calibration = modelView("Calibration", ui.slopeFreq)
-parameters = modelView("deviceParameters", ui.deviceGraph)
+attenuators = modelView('Device', ui.deviceGraph)
+calibration = modelView('Calibration', ui.slopeFreq)
+parameters = modelView('deviceParameters', ui.deviceGraph)
 attenuators.marker.setPen('y')
 attenuators.marker.setAngle(0)
 
