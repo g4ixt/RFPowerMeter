@@ -30,6 +30,11 @@ dB = [-60, -30, 0, 30, 60, 90]
 # Frequency radio button values
 fBand = [14, 50, 70, 144, 432, 1296, 2320, 3400, 5650]
 
+# calibration slope datasheet limits
+fSpec = [900, 1900, 2200]
+maxSlope = [-26*1.6384, -27*1.6384, -28*1.6384]  # Max spec mV converted to ADC Code
+minSlope = [-23*1.6384, -22*1.6384, -21.5*1.6384]  # Min spec mV converted to ADC Code
+
 ###############################################################################
 # classes
 
@@ -173,17 +178,19 @@ class Measurement():
 class modelView():
     '''set up and process data models bound to the GUI widgets'''
 
-    def __init__(self, tableName):
+    def __init__(self, tableName, graphName):
         self.table = tableName
-        self.id = 0
-        self.row = 0
+        self.graphName = graphName
+        self.tm = QSqlTableModel()
+        self.dwm = QDataWidgetMapper()
         self.loss = 0
+        self.marker = self.graphName.addLine(pos=0, angle=90, movable=True, pen='g', label="{value:.2f}")
+        self.marker.label.setPosition(0.1)
+        self.curve = self.graphName.plot([], [], name='', pen='r')
 
     def createTableModel(self):
         # add exception handling?
-        self.tm = QSqlTableModel()
         self.tm.setTable(self.table)
-        self.dwm = QDataWidgetMapper()
         self.dwm.setModel(self.tm)
         self.dwm.setSubmitPolicy(QDataWidgetMapper.ManualSubmit)
 
@@ -204,71 +211,42 @@ class modelView():
         self.dwm.submit()
         sumLosses()
         selectCal()
-        showCal()
+        self.showCurve()
 
-    def deleteRow(self, fieldName, fieldValue):  # for parameters, it needs to do the row of the selected frequency
-        self.tm.setFilter(fieldName + str(fieldValue))
-        self.tm.removeRow(0)
+    def deleteRow(self):
+        cI = self.dwm.currentIndex()
+        self.dwm.toPrevious()
+        self.tm.removeRow(cI)
         self.tm.submit()
-        self.tm.setFilter('')
-        self.updateModel()
         app.processEvents()
 
     def updateModel(self):  # model must be re-populated when python code changes data
         self.tm.select()
         self.tm.layoutChanged.emit()
 
-    def nextOne(self):  # user selected next arrow button
-        self.dwm.toNext()
-
-    def prevOne(self):  # user selected previous arrow button
-        self.dwm.toPrevious()
-
-    def showValues(self):  # display frequency response (loss) parameters of selected device.
-        fValue = []
-        lValue = []
-        self.tm.setFilter('AssetID =' + str(ui.assetID.value()))  # filter table for the selected device
+    def showCurve(self):
+        # plot calibration slope or device loss in GUI
+        freqs = []
+        y = []
+        curveType = 'ValuedB'
+        if self.table == 'Calibration':
+            curveType = 'Slope'
         self.tm.sort(self.tm.fieldIndex('FreqMHz'), QtCore.Qt.AscendingOrder)
-
-        # iterate through selected values and display on graph.  Catch error if no data.
+        #  iterate through selected values and display on graph
         for i in range(0, self.tm.rowCount()):
-            fValue.append(self.tm.record(i).value('FreqMHz'))
-            lValue.append(self.tm.record(i).value('ValuedB'))
-        try:
-            deviceCurve.setData(fValue, lValue)
-        except ValueError:
-            print('No device attenuation data')
-            deviceCurve.setData([], [])
-            ui.freqIndex.setValue(0)
-            ui.loss.setValue(0)
-            ui.directivity.setValue(0)
+            freqs.append(self.tm.record(i).value('FreqMHz'))
+            y.append(self.tm.record(i).value(curveType))
+        self.curve.setData(freqs, y)
 
-
-class Marker():
-    '''Create markers for GUI using infinite lines'''
-
-    def __init__(self, graphName):
-        self.graphName = graphName
-        self.line = self.graphName.addLine()
-
-    def createLine(self, markerFreq):
-        markerPen = pyqtgraph.mkPen(color='g', width=0.5)
-        self.line = self.graphName.addLine(x=markerFreq, movable=True, pen=markerPen, label="{value:.2f}")
-
-    def updateLine(self, frequency):
-        # update line value and position to SpinBox settings
-        # print('frequency = ', frequency)
-        self.line.setValue(frequency)
-
-    def updateSpinBox(self, uiFreq, modelName):
+    def updateSpinBox(self):
         # update GUI boxes to discrete value marker was dragged to
-        modelName.tm.sort(modelName.tm.fieldIndex('FreqMHz'), QtCore.Qt.AscendingOrder)  # sort by Freq, ascending
-        modelName.dwm.toFirst()
-        # while uiFreq.value() < self.line.value(): # and modelName.dwm.currentIndex()+1 < modelName.tm.rowCount():
-        for i in range(modelName.tm.rowCount()):
-            if uiFreq.value() < self.line.value():
-                modelName.dwm.toNext()
-        self.line.setValue(uiFreq.value())
+        try:
+            for i in range(self.tm.rowCount()):
+                if self.tm.record(i).value('FreqMHz') <= self.marker.value():
+                    self.dwm.setCurrentIndex(i)
+            self.marker.setValue(self.tm.record(self.dwm.currentIndex()).value('FreqMHz'))
+        except TypeError:
+            return
 
 
 ###############################################################################
@@ -284,7 +262,6 @@ def exit_handler():
 
 def importS2P():
     # Import the (Touchstone) file of attenuator/coupler/cable calibration data
-    ui.tabWidget.setEnabled(False)
     index = ui.assetID.value()  # if User clicks arrows during import, data would associate with wrong Device
 
     # pop up a dialogue box for user to select the file
@@ -296,27 +273,23 @@ def importS2P():
     Freq = sParamData['frequency'].tolist()
     Loss = sParamData['S21DB'].tolist()
 
-    # filter on parameter values for the currently selected Device and delete existing ones
-    if not ui.appendS2P.isChecked():
-        parameters.tm.setFilter('AssetID =' + str(index))
-        rows = parameters.tm.rowCount()
-        print('rows = ', rows)
-        for i in range(rows):
-            print('deleting parameters', i)
-            parameters.deleteRow('AssetID =', index)  # is slow
-
     # insert the nominal value to the Device data table
     ui.nominaldB.setValue(Loss[int(len(Freq)/2)])
-    attenuators.saveChanges()
+    attenuators.dwm.submit()
 
-    # read the frequency and S21 data from the lists and insert into SQL database rows
+    # read the frequency and S21 data from the lists and insert into model
+    deleteAllFreq()
+    activeButtons(False)
+    print('Inserting ', len(Freq), ' records')
     for i in range(len(Freq)):
-        parameters.insertData(index, Freq[i] / 1e6, Loss[i])
-        print('inserting parameters', i)
-    ui.tabWidget.setEnabled(True)
+        parameters.insertData(index, Freq[i]/1e6, round(Loss[i], 3))  # 2 decimals plenty, 3 to minimise rounding error
+        parameters.marker.setValue(Freq[i]/1e6)
+    prevParam()
+    parameters.showCurve()
+    activeButtons(True)
 
 
-def sumLosses():
+def sumLosses():  # this might be better done with a relational query? (to avoid changing the model filter)
     attenuators.tm.setFilter('inUse =' + str(1))  # set model to devices in use
     attenuators.updateModel()
     attenuators.loss = 0
@@ -327,8 +300,8 @@ def sumLosses():
         freqList = []
         lossList = []
         deviceRecord = attenuators.tm.record(i)
-        attenuators.id = deviceRecord.value('AssetID')
-        parameters.tm.setFilter('AssetID =' + str(attenuators.id))  # filter to only parameters of device i
+        id = deviceRecord.value('AssetID')
+        parameters.tm.setFilter('AssetID =' + str(id))  # filter to only parameters of device i
         parameters.tm.sort(1, 0)  # sort by frequency, ascending: required for numpy interpolate
 
         # copy the parameters into lists.  There must be a better way...
@@ -355,26 +328,6 @@ def selectCal():
             ui.calQualLabel.setText(calRecord.value('CalQuality') + " " + str(int(calRecord.value('FreqMHz'))) + "MHz")
 
 
-def showCal():
-    # display calibration point (slope and intercept) values by frequency
-    fValue = []
-    iValue = []
-    sValue = []
-    calibration.tm.sort(calibration.tm.fieldIndex('FreqMHz'), QtCore.Qt.AscendingOrder)
-
-    #  iterate through selected values and display on graph
-    for i in range(0, calibration.tm.rowCount()):
-        fValue.append(calibration.tm.record(i).value('FreqMHz'))
-        iValue.append(calibration.tm.record(i).value('Intercept'))
-        sValue.append(calibration.tm.record(i).value('Slope'))
-        sValue[i] = sValue[i]+70  # temporary workaround until I learn how to use two Y-axes
-    try:
-        calIntercept.setData(fValue, iValue)
-        calSlope.setData(fValue, sValue)
-    except ValueError:
-        print('No calibration data')
-
-
 def popUp(message, button):
     msg = QMessageBox(parent=(window))
     msg.setIcon(QMessageBox.Warning)
@@ -386,11 +339,27 @@ def popUp(message, button):
 # respond to GUI signals
 
 
-def deleteFreq():
-    # delete one device parameter for the frequency shown in the GUI
-    assetID = ui.assetID.value()
-    parameters.deleteRow('AssetID =', assetID)
-    parameters.showValues()
+def deleteFreq():  # delete parameter for the frequency shown in the GUI
+    parameters.deleteRow()
+    parameters.marker.setValue(ui.freqIndex.value())
+    parameters.showCurve()
+
+
+def deleteAllFreq():
+    activeButtons(False)
+    parameters.tm.sort(parameters.tm.fieldIndex('FreqMHz'), QtCore.Qt.AscendingOrder)
+    print('Deleting ', parameters.tm.rowCount(), ' records')
+    for i in range(parameters.tm.rowCount()):
+        try:
+            parameters.marker.setValue((parameters.tm.record(i).value('FreqMHz')))
+        except TypeError:
+            parameters.marker.setValue((parameters.tm.record(0).value('FreqMHz')))
+        parameters.tm.removeRow(i)
+        parameters.tm.submit()
+        app.processEvents()
+    parameters.tm.select()
+    parameters.showCurve()
+    activeButtons(True)
 
 
 def addFreq():
@@ -398,17 +367,11 @@ def addFreq():
     parameters.dwm.toLast()
 
 
-def deleteDevice():
-    # delete all the device's parameters, then delete the device
-    assetID = ui.assetID.value()
-    parameters.tm.setFilter('AssetID =' + str(assetID))
-    rowcount = parameters.tm.rowCount()
+def deleteDevice():  # delete all the device parameters first, then delete the device
     ui.tabWidget.setEnabled(False)
-    for i in range(rowcount):
-        parameters.deleteRow('AssetID =', assetID)
-    attenuators.deleteRow('AssetID =', assetID)
+    deleteAllFreq()
+    attenuators.deleteRow()
     sumLosses()
-    attenuators.dwm.toFirst()
     ui.tabWidget.setEnabled(True)
 
 
@@ -418,11 +381,9 @@ def addDevice():
 
 
 def deleteCal():
-    currentRow = ui.calFreq.value()
-    calibration.deleteRow("FreqMHz = ", currentRow)
-    calibration.dwm.toFirst()
-    showCal()
-    calMark.updateLine(ui.calFreq.value())
+    calibration.deleteRow()
+    calibration.showCurve()
+    calibration.marker.setValue(ui.calFreq.value())
 
 
 def addCal():
@@ -550,42 +511,40 @@ def rangeSelect():
         ui.rangeSlider.setEnabled(False)
 
 
-def calMarkerMoved():
-    calMark.updateSpinBox(ui.calFreq, calibration)
-
-
 def nextDevice():
-    attenuators.nextOne()
-    parameters.showValues()
+    attenuators.dwm.toNext()
+    parameters.tm.setFilter('AssetID =' + str(ui.assetID.value()))  # filter parameters on selected device
     parameters.dwm.toFirst()
-    devMark.updateLine(ui.freqIndex.value())
+    parameters.showCurve()
+    parameters.marker.setValue(ui.freqIndex.value())
 
 
 def prevDevice():
-    attenuators.prevOne()
-    parameters.showValues()
+    attenuators.dwm.toPrevious()
+    parameters.tm.setFilter('AssetID =' + str(ui.assetID.value()))  # filter parameters on selected device
     parameters.dwm.toFirst()
-    devMark.updateLine(ui.freqIndex.value())
+    parameters.showCurve()
+    parameters.marker.setValue(ui.freqIndex.value())
 
 
 def nextParam():
-    parameters.nextOne()
-    devMark.updateLine(ui.freqIndex.value())
+    parameters.dwm.toNext()
+    parameters.marker.setValue(ui.freqIndex.value())
 
 
 def prevParam():
-    parameters.prevOne()
-    devMark.updateLine(ui.freqIndex.value())
+    parameters.dwm.toPrevious()
+    parameters.marker.setValue(ui.freqIndex.value())
 
 
 def nextCal():
-    calibration.nextOne()
-    calMark.updateLine(ui.calFreq.value())
+    calibration.dwm.toNext()
+    calibration.marker.setValue(ui.calFreq.value())
 
 
 def prevCal():
-    calibration.prevOne()
-    calMark.updateLine(ui.calFreq.value())
+    calibration.dwm.toPrevious()
+    calibration.marker.setValue(ui.calFreq.value())
 
 
 def activeButtons(tF):
@@ -599,6 +558,7 @@ def activeButtons(tF):
     ui.deleteDevice.setEnabled(tF)
     ui.addFreq.setEnabled(tF)
     ui.delFreq.setEnabled(tF)
+    ui.delAllFreq.setEnabled(tF)
     ui.calibrate.setEnabled(tF)
     ui.saveCal.setEnabled(tF)
     ui.addCal.setEnabled(tF)
@@ -611,15 +571,15 @@ def activeButtons(tF):
 config = database()
 config.connect()
 meter = Measurement()
-attenuators = modelView("Device")
-calibration = modelView("Calibration")
-parameters = modelView("deviceParameters")
 app = QtWidgets.QApplication([])  # create QApplication for the GUI
 window = QtWidgets.QMainWindow()
 ui = QtPowerMeter.Ui_MainWindow()
 ui.setupUi(window)
-devMark = Marker(ui.deviceGraph)
-calMark = Marker(ui.calGraph)
+attenuators = modelView("Device", ui.deviceGraph)
+calibration = modelView("Calibration", ui.slopeFreq)
+parameters = modelView("deviceParameters", ui.deviceGraph)
+attenuators.marker.setPen('y')
+attenuators.marker.setAngle(0)
 
 ###############################################################################
 # GUI settings
@@ -640,8 +600,8 @@ yellow = pyqtgraph.mkPen(color='y', width=1.0)
 ui.graphWidget.setYRange(-60, 10)
 ui.graphWidget.setBackground('k')  # black
 ui.graphWidget.showGrid(x=True, y=True)
-ui.graphWidget.addLine(y=10, movable=False, pen=red, label='max', labelOpts={'position':0.05, 'color':('r')})
-ui.graphWidget.addLine(y=-5, movable=False, pen=blue, label='', labelOpts={'position':0.025, 'color':('c')})
+ui.graphWidget.addLine(y=0, movable=False, pen=red, label='max', labelOpts={'position':0.05, 'color':('r')})
+ui.graphWidget.addLine(y=-10, movable=False, pen=blue, label='', labelOpts={'position':0.025, 'color':('c')})
 ui.graphWidget.addLine(y=-50, movable=False, pen=blue, label='', labelOpts={'position':0.025, 'color':('c')})
 ui.graphWidget.setLabel('left', 'Sensor Power', 'dBm')
 ui.graphWidget.setLabel('bottom', 'Power Measurement', 'Samples')
@@ -652,21 +612,19 @@ ui.deviceGraph.showGrid(x=True, y=True)
 ui.deviceGraph.setBackground('k')  # white
 ui.deviceGraph.setLabel('left', 'Gain', 'dB')
 ui.deviceGraph.setLabel('bottom', 'Frequency', '')
-deviceCurve = ui.deviceGraph.plot([], [], name='Parameters', pen=red, width=4)
-devMark.createLine(0)
 
 # pyqtgraph settings for calibration display
-ui.calGraph.addLegend(offset=(825, 10))
-calSlope = ui.calGraph.plot([], [], name='slope', pen=red, width=6, symbol='x')
-calIntercept = ui.calGraph.plot([], [], name='intercept', width=6, symbol='x')
-ui.calGraph.setXRange(0, 3200, padding=0)
-ui.calGraph.showGrid(x=True, y=True)
-ui.calGraph.setBackground('k')  # white
-ui.calGraph.setLabel('bottom', 'Sensor Calibration Point Frequency', '')
-calMark.createLine(0)
+ui.slopeFreq.addLegend(offset=(20, 10))
+ui.slopeFreq.setXRange(0, 3200, padding=0)
+ui.slopeFreq.showGrid(x=True, y=True)
+ui.slopeFreq.setBackground('k')  # white
+ui.slopeFreq.setLabel('bottom', 'Frequency', '')
+ui.slopeFreq.setLabel('left', 'Transfer Fn Slope (Codes/dB)', '')
+maxLim = ui.slopeFreq.plot(fSpec, maxSlope, name='AD8318 spec limits', pen='y')
+minLim = ui.slopeFreq.plot(fSpec, minSlope, pen='y')
 
 ###############################################################################
-# Connect signals from buttons and lines
+# Connect signals from buttons and sliders
 
 # Devices Tab
 ui.nextDevice.clicked.connect(nextDevice)
@@ -678,6 +636,7 @@ ui.nextFreq.clicked.connect(nextParam)
 ui.previousFreq.clicked.connect(prevParam)
 ui.addFreq.clicked.connect(addFreq)
 ui.delFreq.clicked.connect(deleteFreq)
+ui.delAllFreq.clicked.connect(deleteAllFreq)
 ui.saveValues.clicked.connect(parameters.saveChanges)
 ui.loadS2P.clicked.connect(importS2P)
 
@@ -701,8 +660,8 @@ ui.hamBands.buttonClicked.connect(bandSelect)
 ui.rangeSlider.valueChanged.connect(meter.userRange)
 ui.autoRangeButton.clicked.connect(rangeSelect)
 ui.setRangeButton.clicked.connect(rangeSelect)
-devMark.line.sigPositionChanged.connect(lambda: devMark.updateSpinBox(ui.freqIndex, parameters))
-calMark.line.sigPositionChanged.connect(calMarkerMoved)
+parameters.marker.sigPositionChanged.connect(parameters.updateSpinBox)
+calibration.marker.sigPositionChanged.connect(calibration.updateSpinBox)
 
 ###############################################################################
 # set up the application
@@ -733,7 +692,7 @@ calibration.dwm.addMapping(ui.refMeter, 7)
 
 sumLosses()
 selectCal()
-showCal()
+calibration.showCurve()
 
 meter.timer.timeout.connect(readMeter)  # A Qtimer defined in the Measurement Class init
 window.show()
