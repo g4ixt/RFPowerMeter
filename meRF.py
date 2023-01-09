@@ -211,7 +211,10 @@ class modelView():
         self.dwm.submit()
         sumLosses()
         selectCal()
-        self.showCurve()
+        if self.table != 'Calibration':
+            parameters.tm.setFilter('AssetID =' + str(ui.assetID.value()))
+        if self.table != 'Device':
+            self.showCurve()
 
     def deleteRow(self):
         cI = self.dwm.currentIndex()
