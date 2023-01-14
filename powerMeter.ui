@@ -225,7 +225,7 @@ Size</string>
          <number>100</number>
         </property>
         <property name="value">
-         <number>500</number>
+         <number>2000</number>
         </property>
         <property name="tracking">
          <bool>false</bool>
@@ -265,7 +265,7 @@ Size</string>
          <number>100</number>
         </property>
         <property name="value">
-         <number>10</number>
+         <number>30</number>
         </property>
         <property name="tracking">
          <bool>false</bool>
@@ -497,7 +497,7 @@ Size</string>
             <number>0</number>
            </property>
            <property name="maximum">
-            <double>10000.000000000000000</double>
+            <double>50000.000000000000000</double>
            </property>
           </widget>
          </item>

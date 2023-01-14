@@ -94,13 +94,13 @@ class Measurement():
     def __init__(self):
         self.timer = QtCore.QTimer()
         self.runTime = QtCore.QElapsedTimer()
-        self.buffer = np.zeros(25, dtype=float)
+        self.buffer = np.zeros(80, dtype=float)
         self.threadpool = QThreadPool()
         print("Multithreading with %d threads" % self.threadpool.maxThreadCount())
 
     def readSPI(self):
-        # This runs in separate Thread for performance, and samples power 25 times, storing results in a buffer
-        for i in range(25):
+        # This runs in separate Thread for performance, and samples power 80 times, storing results in a buffer
+        for i in range(80):
             # dOut is data from the Pi to the AD7887, i.e. MOSI. dIn is the RF power measurement result, i.e. MISO.
             dIn = spi.xfer([dOut, dOut])  # AD7882 is 12 bit but Pi SPI only 8 bit so two bytes needed
             if dIn[0] > 13:  # anything > 13 is due to noise or spi errors
@@ -113,9 +113,9 @@ class Measurement():
         self.buffer = (self.buffer/calibration.slope) + (calibration.intercept)
 
         # Append buffer to Shift Register - slows sample rate.  Numpy roll is faster than collections.deque and slicing
-        self.yAxis = np.roll(self.yAxis, -25)
-        self.yAxis[-25:] = self.buffer
-        self.counter += 25
+        self.yAxis = np.roll(self.yAxis, -80)
+        self.yAxis[-80:] = self.buffer
+        self.counter += 80
 
     def updateGUI(self):
         self.averagePower = np.average(self.yAxis[-self.averages:])
@@ -303,8 +303,8 @@ def sumLosses():  # this might be better done with a relational query? (to avoid
         freqList = []
         lossList = []
         deviceRecord = attenuators.tm.record(i)
-        id = deviceRecord.value('AssetID')
-        parameters.tm.setFilter('AssetID =' + str(id))  # filter to only parameters of device i
+        asid = deviceRecord.value('AssetID')
+        parameters.tm.setFilter('AssetID =' + str(asid))  # filter to only parameters of device i
         parameters.tm.sort(1, 0)  # sort by frequency, ascending: required for numpy interpolate
 
         # copy the parameters into lists.  There must be a better way...
