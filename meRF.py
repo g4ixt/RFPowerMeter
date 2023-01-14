@@ -11,7 +11,7 @@ Python package for RF and Microwave applications.
 
 import numpy as np
 from PyQt5 import QtWidgets, QtCore
-from PyQt5.QtCore import pyqtSlot, QRunnable, QThreadPool
+from PyQt5.QtCore import pyqtSlot, pyqtSignal, QRunnable, QThreadPool, QObject
 from PyQt5.QtWidgets import QMessageBox, QFileDialog, QDataWidgetMapper
 from PyQt5.QtSql import QSqlDatabase, QSqlTableModel
 import spidev
@@ -53,6 +53,13 @@ class Worker(QRunnable):
         while meter.timer.isActive():
             self.fn(*self.args)
         print("%s thread finished" % self.fn.__name__)
+
+
+class Signal(QObject):
+    ''' Signals from the Worker thread '''
+    finished = pyqtSignal()
+    error = pyqtSignal(str)
+    result = pyqtSignal(object)
 
 
 class database():
@@ -97,9 +104,14 @@ class Measurement():
         self.buffer = np.zeros(80, dtype=float)
         self.threadpool = QThreadPool()
         print("Multithreading with %d threads" % self.threadpool.maxThreadCount())
+        #
+        self.signals = Signal()
+        self.signals.result.connect(self.procData)
+        #
 
     def readSPI(self):
-        # This runs in separate Thread for performance, and samples power 80 times, storing results in a buffer
+        # This runs in separate Thread for performance, and samples power 80 times, storing results in a buffer.
+        # The buffer must be just large enough so that filling it exceeds the processing time of GUI update
         for i in range(80):
             # dOut is data from the Pi to the AD7887, i.e. MOSI. dIn is the RF power measurement result, i.e. MISO.
             dIn = spi.xfer([dOut, dOut])  # AD7882 is 12 bit but Pi SPI only 8 bit so two bytes needed
@@ -110,16 +122,29 @@ class Measurement():
             self.buffer[i] = self.dIn
 
         # use calibration nearest to the measurement frequency obtained from selectCal method
+        print(calibration.slope, '  ', calibration.intercept)
         self.buffer = (self.buffer/calibration.slope) + (calibration.intercept)
 
         # Append buffer to Shift Register - slows sample rate.  Numpy roll is faster than collections.deque and slicing
         self.yAxis = np.roll(self.yAxis, -80)
         self.yAxis[-80:] = self.buffer
+        # self.counter += 80
+        self.signals.result.emit(self.buffer)
+
+    def procData(self, data):
+        # Append buffer to Shift Register - slows sample rate.  Numpy roll is faster than collections.deque and slicing
+        #self.yAxis = np.roll(self.yAxis, -80)
+        #self.yAxis[-80:] = data
         self.counter += 80
 
-    def updateGUI(self):
         self.averagePower = np.average(self.yAxis[-self.averages:])
         self.measuredPdBm = self.averagePower - attenuators.loss  # subtract total loss of couplers and attenuators
+
+        self.updateGUI()
+
+    def updateGUI(self):
+        # self.averagePower = np.average(self.yAxis[-self.averages:])
+        # self.measuredPdBm = self.averagePower - attenuators.loss  # subtract total loss of couplers and attenuators
 
         # uses the average powers apart from the moving graph, which uses the individual measurements
         ui.sensorPower.setValue(self.averagePower)
@@ -174,6 +199,8 @@ class Measurement():
         ui.powerUnit.setText(Units[int(self.range)])
         ui.powerWatts.setSuffix(Units[int(self.range)])
 
+    def worker_output(self, s):
+       print('buffer ', s)
 
 class modelView():
     '''set up and process data models bound to the GUI widgets'''
@@ -438,10 +465,11 @@ def openSPI():
 
     # spi max_speed_hz must be integer val accepted by driver : Pi max=31.2e6 but AD7887 max=125ks/s or 2MHz fSCLK
     # valid values are 7.629e3, 15.2e3, 30.5e3, 61e3, 122e3, 244e3, 488e3, 976e3, 1.953e6, [3.9, 7.8, 15.6, 31.2e6]
+    # spi.max_speed_hz = 1953000
     spi.max_speed_hz = 1953000
 
 
-def startMeter():
+def startMeter(self):
     try:
         openSPI()
     except FileNotFoundError:
@@ -455,9 +483,16 @@ def startMeter():
         meter.setTimebase()
         meter.runTime.start()  # A QElapsedTimer that measures how long meter has been running for
         meter.timer.start()  # this timer calls readMeter method every time it re-starts
-
         measurePower = Worker(meter.readSPI)
+        #
+        # measurePower.signals.result.connect(self.worker_output)
+        #
         meter.threadpool.start(measurePower)
+
+
+def readMeter():
+    meter.rate = meter.counter / (meter.runTime.elapsed()/1000)
+    # meter.updateGUI()
 
 
 def stopMeter():
@@ -470,11 +505,6 @@ def stopMeter():
     ui.inputPower.setValue(-70)
     activeButtons(True)
     spi.close()
-
-
-def readMeter():
-    meter.rate = meter.counter / (meter.runTime.elapsed()/1000)
-    meter.updateGUI()
 
 
 def slidersMoved():
