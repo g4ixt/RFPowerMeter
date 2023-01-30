@@ -194,7 +194,7 @@ Size</string>
          </font>
         </property>
         <property name="text">
-         <string>5kS</string>
+         <string>1kS</string>
         </property>
        </widget>
        <widget class="QSlider" name="averaging">
@@ -216,7 +216,7 @@ Size</string>
          <number>1</number>
         </property>
         <property name="maximum">
-         <number>5000</number>
+         <number>1000</number>
         </property>
         <property name="singleStep">
          <number>10</number>
@@ -225,7 +225,7 @@ Size</string>
          <number>100</number>
         </property>
         <property name="value">
-         <number>2000</number>
+         <number>50</number>
         </property>
         <property name="tracking">
          <bool>false</bool>
@@ -237,7 +237,7 @@ Size</string>
          <enum>QSlider::TicksBothSides</enum>
         </property>
         <property name="tickInterval">
-         <number>500</number>
+         <number>100</number>
         </property>
        </widget>
        <widget class="QSlider" name="memorySize">
@@ -265,7 +265,7 @@ Size</string>
          <number>100</number>
         </property>
         <property name="value">
-         <number>30</number>
+         <number>5</number>
         </property>
         <property name="tracking">
          <bool>false</bool>
@@ -375,45 +375,6 @@ Size</string>
            </property>
           </widget>
          </item>
-         <item row="0" column="1">
-          <widget class="QLabel" name="label_10">
-           <property name="sizePolicy">
-            <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
-             <horstretch>0</horstretch>
-             <verstretch>0</verstretch>
-            </sizepolicy>
-           </property>
-           <property name="font">
-            <font>
-             <pointsize>12</pointsize>
-            </font>
-           </property>
-           <property name="text">
-            <string>Attenuation</string>
-           </property>
-           <property name="alignment">
-            <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
-           </property>
-           <property name="wordWrap">
-            <bool>false</bool>
-           </property>
-          </widget>
-         </item>
-         <item row="0" column="0">
-          <widget class="QLabel" name="label_9">
-           <property name="font">
-            <font>
-             <pointsize>12</pointsize>
-            </font>
-           </property>
-           <property name="text">
-            <string>Sensor Power</string>
-           </property>
-           <property name="alignment">
-            <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
-           </property>
-          </widget>
-         </item>
          <item row="0" column="6">
           <widget class="QPushButton" name="runButton">
            <property name="sizePolicy">
@@ -429,135 +390,6 @@ Size</string>
            </property>
            <property name="text">
             <string>Run</string>
-           </property>
-           <property name="iconSize">
-            <size>
-             <width>10</width>
-             <height>16</height>
-            </size>
-           </property>
-          </widget>
-         </item>
-         <item row="0" column="4">
-          <widget class="QLabel" name="label_14">
-           <property name="font">
-            <font>
-             <pointsize>12</pointsize>
-            </font>
-           </property>
-           <property name="text">
-            <string>Reference</string>
-           </property>
-           <property name="alignment">
-            <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
-           </property>
-          </widget>
-         </item>
-         <item row="0" column="2">
-          <widget class="QLabel" name="label_12">
-           <property name="font">
-            <font>
-             <pointsize>12</pointsize>
-            </font>
-           </property>
-           <property name="text">
-            <string>RF Power</string>
-           </property>
-           <property name="alignment">
-            <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
-           </property>
-           <property name="wordWrap">
-            <bool>true</bool>
-           </property>
-          </widget>
-         </item>
-         <item row="0" column="3">
-          <widget class="QDoubleSpinBox" name="measurementRate">
-           <property name="enabled">
-            <bool>false</bool>
-           </property>
-           <property name="font">
-            <font>
-             <pointsize>12</pointsize>
-            </font>
-           </property>
-           <property name="frame">
-            <bool>false</bool>
-           </property>
-           <property name="alignment">
-            <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
-           </property>
-           <property name="buttonSymbols">
-            <enum>QAbstractSpinBox::NoButtons</enum>
-           </property>
-           <property name="suffix">
-            <string> S/s</string>
-           </property>
-           <property name="decimals">
-            <number>0</number>
-           </property>
-           <property name="maximum">
-            <double>50000.000000000000000</double>
-           </property>
-          </widget>
-         </item>
-         <item row="1" column="3">
-          <widget class="QDoubleSpinBox" name="powerWatts">
-           <property name="enabled">
-            <bool>false</bool>
-           </property>
-           <property name="font">
-            <font>
-             <pointsize>12</pointsize>
-            </font>
-           </property>
-           <property name="frame">
-            <bool>false</bool>
-           </property>
-           <property name="alignment">
-            <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
-           </property>
-           <property name="readOnly">
-            <bool>true</bool>
-           </property>
-           <property name="buttonSymbols">
-            <enum>QAbstractSpinBox::NoButtons</enum>
-           </property>
-           <property name="suffix">
-            <string>nW</string>
-           </property>
-           <property name="decimals">
-            <number>1</number>
-           </property>
-           <property name="minimum">
-            <double>0.000000000000000</double>
-           </property>
-           <property name="maximum">
-            <double>10000.000000000000000</double>
-           </property>
-           <property name="singleStep">
-            <double>0.010000000000000</double>
-           </property>
-           <property name="value">
-            <double>0.000000000000000</double>
-           </property>
-          </widget>
-         </item>
-         <item row="1" column="6">
-          <widget class="QPushButton" name="stopButton">
-           <property name="sizePolicy">
-            <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
-             <horstretch>0</horstretch>
-             <verstretch>0</verstretch>
-            </sizepolicy>
-           </property>
-           <property name="font">
-            <font>
-             <pointsize>12</pointsize>
-            </font>
-           </property>
-           <property name="text">
-            <string>Stop</string>
            </property>
            <property name="iconSize">
             <size>
@@ -606,8 +438,26 @@ Size</string>
            </property>
           </widget>
          </item>
-         <item row="1" column="2">
-          <widget class="QDoubleSpinBox" name="inputPower">
+         <item row="0" column="2">
+          <widget class="QLabel" name="label_12">
+           <property name="font">
+            <font>
+             <pointsize>12</pointsize>
+            </font>
+           </property>
+           <property name="text">
+            <string>RF Power</string>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
+           </property>
+           <property name="wordWrap">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="1">
+          <widget class="QDoubleSpinBox" name="totalLoss">
            <property name="enabled">
             <bool>false</bool>
            </property>
@@ -616,35 +466,32 @@ Size</string>
              <pointsize>12</pointsize>
             </font>
            </property>
+           <property name="autoFillBackground">
+            <bool>false</bool>
+           </property>
            <property name="frame">
             <bool>false</bool>
            </property>
            <property name="alignment">
             <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
            </property>
-           <property name="readOnly">
-            <bool>true</bool>
-           </property>
            <property name="buttonSymbols">
             <enum>QAbstractSpinBox::NoButtons</enum>
            </property>
            <property name="suffix">
-            <string>dBm</string>
+            <string>dB</string>
            </property>
            <property name="decimals">
-            <number>1</number>
+            <number>2</number>
            </property>
            <property name="minimum">
-            <double>-70.000000000000000</double>
+            <double>-120.000000000000000</double>
            </property>
            <property name="maximum">
-            <double>63.000000000000000</double>
+            <double>120.000000000000000</double>
            </property>
            <property name="singleStep">
             <double>0.010000000000000</double>
-           </property>
-           <property name="value">
-            <double>-70.000000000000000</double>
            </property>
           </widget>
          </item>
@@ -690,42 +537,57 @@ Size</string>
            </property>
           </widget>
          </item>
-         <item row="1" column="1">
-          <widget class="QDoubleSpinBox" name="totalLoss">
-           <property name="enabled">
-            <bool>false</bool>
+         <item row="0" column="1">
+          <widget class="QLabel" name="label_10">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
            </property>
            <property name="font">
             <font>
              <pointsize>12</pointsize>
             </font>
            </property>
-           <property name="autoFillBackground">
-            <bool>false</bool>
-           </property>
-           <property name="frame">
-            <bool>false</bool>
+           <property name="text">
+            <string>Attenuation</string>
            </property>
            <property name="alignment">
             <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
            </property>
-           <property name="buttonSymbols">
-            <enum>QAbstractSpinBox::NoButtons</enum>
+           <property name="wordWrap">
+            <bool>false</bool>
            </property>
-           <property name="suffix">
-            <string>dB</string>
+          </widget>
+         </item>
+         <item row="0" column="0">
+          <widget class="QLabel" name="label_9">
+           <property name="font">
+            <font>
+             <pointsize>12</pointsize>
+            </font>
            </property>
-           <property name="decimals">
-            <number>2</number>
+           <property name="text">
+            <string>Sensor Power</string>
            </property>
-           <property name="minimum">
-            <double>-120.000000000000000</double>
+           <property name="alignment">
+            <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
            </property>
-           <property name="maximum">
-            <double>120.000000000000000</double>
+          </widget>
+         </item>
+         <item row="0" column="4">
+          <widget class="QLabel" name="label_14">
+           <property name="font">
+            <font>
+             <pointsize>12</pointsize>
+            </font>
            </property>
-           <property name="singleStep">
-            <double>0.010000000000000</double>
+           <property name="text">
+            <string>Reference</string>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
            </property>
           </widget>
          </item>
@@ -757,11 +619,167 @@ Size</string>
            </property>
           </widget>
          </item>
+         <item row="1" column="2">
+          <widget class="QDoubleSpinBox" name="inputPower">
+           <property name="enabled">
+            <bool>false</bool>
+           </property>
+           <property name="font">
+            <font>
+             <pointsize>12</pointsize>
+            </font>
+           </property>
+           <property name="frame">
+            <bool>false</bool>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
+           </property>
+           <property name="readOnly">
+            <bool>true</bool>
+           </property>
+           <property name="buttonSymbols">
+            <enum>QAbstractSpinBox::NoButtons</enum>
+           </property>
+           <property name="suffix">
+            <string>dBm</string>
+           </property>
+           <property name="decimals">
+            <number>1</number>
+           </property>
+           <property name="minimum">
+            <double>-70.000000000000000</double>
+           </property>
+           <property name="maximum">
+            <double>63.000000000000000</double>
+           </property>
+           <property name="singleStep">
+            <double>0.010000000000000</double>
+           </property>
+           <property name="value">
+            <double>-70.000000000000000</double>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="3">
+          <widget class="QLabel" name="label_20">
+           <property name="font">
+            <font>
+             <pointsize>12</pointsize>
+            </font>
+           </property>
+           <property name="text">
+            <string>Sample Rate</string>
+           </property>
+          </widget>
+         </item>
+         <item row="2" column="2">
+          <widget class="QDoubleSpinBox" name="powerWatts">
+           <property name="enabled">
+            <bool>false</bool>
+           </property>
+           <property name="font">
+            <font>
+             <pointsize>12</pointsize>
+            </font>
+           </property>
+           <property name="frame">
+            <bool>false</bool>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
+           </property>
+           <property name="readOnly">
+            <bool>true</bool>
+           </property>
+           <property name="buttonSymbols">
+            <enum>QAbstractSpinBox::NoButtons</enum>
+           </property>
+           <property name="prefix">
+            <string> </string>
+           </property>
+           <property name="suffix">
+            <string>nW</string>
+           </property>
+           <property name="decimals">
+            <number>1</number>
+           </property>
+           <property name="minimum">
+            <double>0.000000000000000</double>
+           </property>
+           <property name="maximum">
+            <double>10000.000000000000000</double>
+           </property>
+           <property name="singleStep">
+            <double>0.010000000000000</double>
+           </property>
+           <property name="value">
+            <double>0.000000000000000</double>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="3">
+          <widget class="QDoubleSpinBox" name="measurementRate">
+           <property name="enabled">
+            <bool>false</bool>
+           </property>
+           <property name="font">
+            <font>
+             <pointsize>12</pointsize>
+            </font>
+           </property>
+           <property name="frame">
+            <bool>false</bool>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
+           </property>
+           <property name="buttonSymbols">
+            <enum>QAbstractSpinBox::NoButtons</enum>
+           </property>
+           <property name="prefix">
+            <string/>
+           </property>
+           <property name="suffix">
+            <string> /s</string>
+           </property>
+           <property name="decimals">
+            <number>0</number>
+           </property>
+           <property name="maximum">
+            <double>50000.000000000000000</double>
+           </property>
+          </widget>
+         </item>
+         <item row="2" column="6">
+          <widget class="QPushButton" name="stopButton">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="font">
+            <font>
+             <pointsize>12</pointsize>
+            </font>
+           </property>
+           <property name="text">
+            <string>Stop</string>
+           </property>
+           <property name="iconSize">
+            <size>
+             <width>10</width>
+             <height>16</height>
+            </size>
+           </property>
+          </widget>
+         </item>
         </layout>
        </widget>
        <widget class="QSpinBox" name="freqBox">
         <property name="enabled">
-         <bool>false</bool>
+         <bool>true</bool>
         </property>
         <property name="geometry">
          <rect>
@@ -782,6 +800,9 @@ Size</string>
         <property name="alignment">
          <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
         </property>
+        <property name="readOnly">
+         <bool>true</bool>
+        </property>
         <property name="buttonSymbols">
          <enum>QAbstractSpinBox::NoButtons</enum>
         </property>
@@ -789,7 +810,7 @@ Size</string>
          <bool>false</bool>
         </property>
         <property name="suffix">
-         <string> MHz</string>
+         <string>MHz</string>
         </property>
         <property name="minimum">
          <number>0</number>
@@ -830,7 +851,7 @@ Size</string>
          </rect>
         </property>
         <property name="text">
-         <string>6m</string>
+         <string>50</string>
         </property>
         <attribute name="buttonGroup">
          <string notr="true">hamBands</string>
@@ -846,7 +867,7 @@ Size</string>
          </rect>
         </property>
         <property name="text">
-         <string>4m</string>
+         <string>70</string>
         </property>
         <attribute name="buttonGroup">
          <string notr="true">hamBands</string>
@@ -862,7 +883,7 @@ Size</string>
          </rect>
         </property>
         <property name="text">
-         <string>2m</string>
+         <string>144</string>
         </property>
         <attribute name="buttonGroup">
          <string notr="true">hamBands</string>
@@ -871,14 +892,14 @@ Size</string>
        <widget class="QRadioButton" name="cm70">
         <property name="geometry">
          <rect>
-          <x>450</x>
+          <x>460</x>
           <y>380</y>
           <width>61</width>
           <height>23</height>
          </rect>
         </property>
         <property name="text">
-         <string>70cm</string>
+         <string>432</string>
         </property>
         <attribute name="buttonGroup">
          <string notr="true">hamBands</string>
@@ -894,7 +915,7 @@ Size</string>
          </rect>
         </property>
         <property name="text">
-         <string>23cm</string>
+         <string>1296</string>
         </property>
         <property name="checked">
          <bool>true</bool>
@@ -913,7 +934,7 @@ Size</string>
          </rect>
         </property>
         <property name="text">
-         <string>13cm</string>
+         <string>2320</string>
         </property>
         <attribute name="buttonGroup">
          <string notr="true">hamBands</string>
@@ -929,7 +950,7 @@ Size</string>
          </rect>
         </property>
         <property name="text">
-         <string>9cm</string>
+         <string>3400</string>
         </property>
         <attribute name="buttonGroup">
          <string notr="true">hamBands</string>
@@ -945,7 +966,7 @@ Size</string>
          </rect>
         </property>
         <property name="text">
-         <string>6cm</string>
+         <string>5700</string>
         </property>
         <attribute name="buttonGroup">
          <string notr="true">hamBands</string>
@@ -954,14 +975,14 @@ Size</string>
        <widget class="QRadioButton" name="noBand">
         <property name="geometry">
          <rect>
-          <x>790</x>
+          <x>820</x>
           <y>380</y>
-          <width>121</width>
+          <width>91</width>
           <height>23</height>
          </rect>
         </property>
         <property name="text">
-         <string>Set Frequency</string>
+         <string>Freq slider</string>
         </property>
         <attribute name="buttonGroup">
          <string notr="true">hamBands</string>
@@ -1050,7 +1071,7 @@ Size</string>
           <x>10</x>
           <y>10</y>
           <width>981</width>
-          <height>196</height>
+          <height>210</height>
          </rect>
         </property>
         <layout class="QGridLayout" name="gridLayout_2">
@@ -1676,9 +1697,9 @@ Size</string>
         <property name="geometry">
          <rect>
           <x>10</x>
-          <y>210</y>
+          <y>230</y>
           <width>481</width>
-          <height>301</height>
+          <height>281</height>
          </rect>
         </property>
         <layout class="QGridLayout" name="gridLayout_5">
@@ -1702,7 +1723,7 @@ Size</string>
           <x>10</x>
           <y>10</y>
           <width>981</width>
-          <height>191</height>
+          <height>211</height>
          </rect>
         </property>
         <layout class="QGridLayout" name="gridLayout_4">
@@ -2126,9 +2147,9 @@ Size</string>
         <property name="geometry">
          <rect>
           <x>10</x>
-          <y>210</y>
+          <y>230</y>
           <width>481</width>
-          <height>301</height>
+          <height>281</height>
          </rect>
         </property>
         <layout class="QGridLayout" name="gridLayout_6">
@@ -2243,7 +2264,7 @@ Size</string>
   </property>
  </designerdata>
  <buttongroups>
-  <buttongroup name="dBmRange"/>
   <buttongroup name="hamBands"/>
+  <buttongroup name="dBmRange"/>
  </buttongroups>
 </ui>
