@@ -491,7 +491,7 @@ def stopMeter():
     ui.measurementRate.setValue(0)
     ui.sensorPower.setValue(-70)
     ui.inputPower.setValue(-70)
-    ui.spiNoise.setValue('')
+    ui.spiNoise.setText('')
     activeButtons(True)
     spi.close()
 
