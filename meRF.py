@@ -605,11 +605,10 @@ attenuators.marker.setAngle(0)
 # adjust analog gauge meter
 ui.meterWidget.set_MaxValue(10)
 ui.meterWidget.set_enable_CenterPoint(enable=False)
-ui.meterWidget.set_enable_barGraph(enable=True)
 ui.meterWidget.set_enable_value_text(enable=False)
 ui.meterWidget.set_enable_filled_Polygon(enable=True)
-ui.meterWidget.set_start_scale_angle(90)
-ui.meterWidget.set_total_scale_angle_size(270)
+ui.meterWidget.set_start_scale_angle(135)
+ui.meterWidget.set_enable_ScaleText(enable=True)
 
 # pyqtgraph settings for power vs time display
 red = pyqtgraph.mkPen(color='r', width=1.0)
