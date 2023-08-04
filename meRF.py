@@ -9,9 +9,12 @@ This code makes use of a subset of the code from touchstone.py from scikit-rf, a
 Python package for RF and Microwave applications.
 """
 
+import time
+import logging
 import numpy as np
+import queue
 from PyQt5 import QtWidgets, QtCore
-from PyQt5.QtCore import pyqtSlot, QRunnable, QThreadPool
+from PyQt5.QtCore import pyqtSlot, pyqtSignal, QRunnable, QObject, QThreadPool, QTimer
 from PyQt5.QtWidgets import QMessageBox, QFileDialog, QDataWidgetMapper
 from PyQt5.QtSql import QSqlDatabase, QSqlTableModel
 import spidev
@@ -19,40 +22,27 @@ import pyqtgraph
 import QtPowerMeter  # the GUI
 from touchstone_subset import Touchstone  # for importing S2P files
 spi = spidev.SpiDev()
+threadpool = QThreadPool()
 
 # AD7887 ADC control register setting for external reference, single channel, mode 3
 dOut = 0b00100000  # power down when CS high
 
 # Meter scale values
-Units = [' nW', ' uW', ' mW', ' W', ' kW']
-dB = [-60, -30, 0, 30, 60, 90]
+Units = [' pW', ' nW', ' uW', ' mW', ' W']
+dB = [-60, -30, 0, 30, 60]
 
 # Frequency radio button values
-fBand = [14, 50, 70, 144, 432, 1296, 2320, 3400, 5650]
+fBand = [14, 50, 70, 144, 432, 1296, 2320, 3400, 5700]
 
 # calibration slope datasheet limits
 fSpec = [900, 1900, 2200]
 maxSlope = [-26*1.6384, -27*1.6384, -28*1.6384]  # Max spec mV converted to ADC Code
 minSlope = [-23*1.6384, -22*1.6384, -21.5*1.6384]  # Min spec mV converted to ADC Code
 
+logging.basicConfig(format="%(message)s", level=logging.INFO)
+
 ###############################################################################
 # classes
-
-
-class Worker(QRunnable):
-    '''    multithread some functions   '''
-
-    def __init__(self, fn, *args):
-        super().__init__()
-        self.fn = fn
-        self.args = args
-
-    @pyqtSlot()
-    def run(self):
-        print("%s thread running" % self.fn.__name__)  # print is not thread safe
-        while meter.timer.isActive():
-            self.fn(*self.args)
-        print("%s thread finished" % self.fn.__name__)
 
 
 class database():
@@ -62,15 +52,13 @@ class database():
         self.db = None
 
     def connect(self):
-
-        print("Open database")
         self.db = QSqlDatabase.addDatabase('QSQLITE')
-
         if QtCore.QFile.exists('powerMeter.db'):
+            logging.info('Open database')
             self.db.setDatabaseName('powerMeter.db')
             self.db.open()
         else:
-            print("Database file missing")
+            logging.info('Database file missing')
             msg = QMessageBox()
             msg.setIcon(QMessageBox.Critical)
             msg.setText('Database file missing')
@@ -78,7 +66,6 @@ class database():
             msg.exec_()
 
     def disconnect(self):
-        print('Close Database')
         attenuators.tm.submitAll()
         parameters.tm.submitAll()
         calibration.tm.submitAll()
@@ -88,91 +75,133 @@ class database():
         self.db.close()
 
 
+class WorkerSignals(QObject):
+    error = pyqtSignal(str)
+    result = pyqtSignal(np.ndarray, float, float)
+
+
+class Worker(QRunnable):
+    '''Worker threads so that measurements can run outside GUI event loop'''
+
+    def __init__(self, fn):
+        super(Worker, self).__init__()
+        self.fn = fn
+        self.signals = WorkerSignals()
+
+    @pyqtSlot()
+    def run(self):
+        '''Initialise the runner'''
+
+        logging.info(f'{self.fn.__name__} thread running')
+        self.fn()
+        logging.info(f'{self.fn.__name__} thread ended')
+
+
 class Measurement():
     '''Read AD8318 RF Power value via AD7887 ADC using the Serial Peripheral Interface (SPI)'''
 
     def __init__(self):
-        self.timer = QtCore.QTimer()
-        self.runTime = QtCore.QElapsedTimer()
-        self.buffer = np.zeros(80, dtype=float)
-        self.threadpool = QThreadPool()
-        print("Multithreading with %d threads" % self.threadpool.maxThreadCount())
+        self.running = False
+        self.sampleTimer = QtCore.QElapsedTimer()
+        self.runTimer = QtCore.QElapsedTimer()
+        self.sampleCounter = 0
+        self.block = 5000
+        self.signals = WorkerSignals()
+        self.signals.result.connect(self.updateGUI)
+        self.signals.error.connect(spiError)
+        self.fifo = queue.SimpleQueue()
 
-    def readSPI(self):
-        # This runs in separate Thread for performance, and samples power 80 times, storing results in a buffer
-        for i in range(80):
-            # dOut is data from the Pi to the AD7887, i.e. MOSI. dIn is the RF power measurement result, i.e. MISO.
-            dIn = spi.xfer([dOut, dOut])  # AD7882 is 12 bit but Pi SPI only 8 bit so two bytes needed
-            if dIn[0] > 13:  # anything > 13 is due to noise or spi errors
-                ui.spiNoise.setText('SPI error')
+    def startMeasurement(self):
+        self.spiTransaction = Worker(self.readSPI)  # workers are auto-deleted when thread stops
+        self.powerResults = Worker(self.calcPowers)
+        try:
+            openSPI()
+        except FileNotFoundError:
+            popUp('No SPI device found', 'OK')
+        else:
+            activeButtons(False)
+            selectCal()
+            sumLosses()
+            self.running = True
+            self.setTimebase()
+            self.sampleCounter = 0
+            self.sampleTimer.start()
+            threadpool.start(self.spiTransaction)
+            threadpool.start(self.powerResults)
 
-            self.dIn = (dIn[0] << 8) + dIn[1]  # shift first byte to be MSB of a 12-bit word and add second byte
-            self.buffer[i] = self.dIn
+    def readSPI(self):  # always threaded
+        while self.running:
+            dIn = spi.xfer([dOut, dOut])  # dOut = Pi to AD7887, MOSI. dIn = measurement result, MISO.
+            if dIn[0] > 13:
+                self.signals.error.emit('SPI error')  # anything > 13 is due to noise or spi errors
+                return
+            dIn = (dIn[0] << 8) + dIn[1]  # shift first byte to be MSB of a 12-bit word and add second byte
+            self.fifo.put(dIn)  # put measurement onto FIFO queue
 
-        # use calibration nearest to the measurement frequency obtained from selectCal method
-        self.buffer = (self.buffer/calibration.slope) + (calibration.intercept)
+    def calcPowers(self):  # always threaded
+        buffer = np.zeros(self.block, dtype=float)  # a buffer is necessary for high sample rate
+        while self.running or self.fifo.qsize() > 0:  # empty the fifo queue on stop, or App hangs
+            for i in range(self.block):
+                buffer[i] = self.fifo.get(block=True, timeout=None)  # pop measurement from FIFO queue
+            buffer = np.divide(buffer, calibration.slope)
+            buffer = np.add(buffer, calibration.intercept)
+            self.yAxis = np.roll(self.yAxis, -self.block)  # roll the array left
+            self.yAxis[-self.block:] = buffer  # over-write rolled data with new data
+            averagePower = np.average(self.yAxis[-self.averages:])
+            measuredPdBm = averagePower - attenuators.loss  # subtract total loss of couplers and attenuators
+            self.signals.result.emit(self.yAxis, averagePower, measuredPdBm)  # pass to UpdateGUI
 
-        # Append buffer to Shift Register - slows sample rate.  Numpy roll is faster than collections.deque and slicing
-        self.yAxis = np.roll(self.yAxis, -80)
-        self.yAxis[-80:] = self.buffer
-        self.counter += 80
+    def setTimebase(self):
+        self.samples = ui.memorySize.value() * 1000  # memory size in kSamples
+        self.averages = ui.averaging.value()
+        self.xAxis = np.arange(0, self.samples, 1, dtype=int)  # fill the np array with consecutive integers
+        self.yAxis = np.full(self.samples, -75, dtype=float)  # fill the np array with each element = 75
 
-    def updateGUI(self):
-        self.averagePower = np.average(self.yAxis[-self.averages:])
-        self.measuredPdBm = self.averagePower - attenuators.loss  # subtract total loss of couplers and attenuators
-
-        # uses the average powers apart from the moving graph, which uses the individual measurements
-        ui.sensorPower.setValue(self.averagePower)
-        ui.inputPower.setValue(self.measuredPdBm)
-
+    def updateGUI(self, Axis, avgP, PdBm):
         # update power meter range and label
         if ui.autoRangeButton.isChecked():
             try:
-                self.autoRange()
+                # determine if the power units are nW, uW, mW, or W
+                self.scale = next(index for index, listValue in enumerate(dB) if listValue > PdBm)
+                ui.powerUnit.setText(str(Units[self.scale]))
+                ui.powerWatts.setSuffix(str(Units[self.scale]))
             except StopIteration:
-                ui.spiNoise.setText('SPI error')
-                meter.timer.stop()  # stops the measurement worker thread - it loops when timer is active
-                popUp('Sensor missing, not powered, or faulty', 'OK')
+                logging.info(f'range error = {self.scale}')
+                spiError('Range error')
                 stopMeter()
                 return
         else:
-            self.userRange()
+            self.userRange  # set the units from the main steps of the slider
 
-        self.powerW = 10 ** ((self.measuredPdBm - dB[self.range]) / 10)  # dBm to Watts
-        # convert it to display according to meter range selected
-        ui.meterWidget.set_MaxValue(1000)
-        if self.powerW <= 10:
-            ui.meterWidget.set_MaxValue(10)
+        # convert to display according to meter range selected
+        power = 10 ** ((PdBm - dB[self.scale-1]) / 10)
+        ui.meterWidget.set_MaxValue(10.0)  # a max of 1 on the widget doesn't work
+        if power >= 1:
+            ui.meterWidget.set_MaxValue(10.0)
+        if power >= 10:
+            ui.meterWidget.set_MaxValue(100.0)
+        if power >= 100:
+            ui.meterWidget.set_MaxValue(1000.0)
 
-        if self.powerW >= 10 and self.powerW <= 100:
-            ui.meterWidget.set_MaxValue(100)
+        # update boxes on Display tab (uses the average powers)
+        self.sampleCounter += self.block
+        sampleRate = self.sampleCounter / (self.sampleTimer.nsecsElapsed()/1e9)
+        ui.measurementRate.setValue(sampleRate)
+        ui.sensorPower.setValue(avgP)
+        ui.inputPower.setValue(PdBm)
 
-        # update the analogue gauge widget
-        ui.meterWidget.update_value(self.powerW, mouse_controlled=False)
-        ui.powerWatts.setValue(self.powerW)
-        ui.measurementRate.setValue(self.rate)
+        # update the analogue gauge widget (uses the average powers)
+        ui.meterWidget.update_value(power, mouse_controlled=False)
+        ui.powerWatts.setValue(power)
 
-        # update the moving pyqtgraph
-        powerCurve.setData(meter.xAxis, self.yAxis)
-
-    def setTimebase(self):
-        self.samples = ui.memorySize.value() * 1000
-        self.xAxis = np.arange(self.samples, dtype=int)  # test
-        self.yAxis = np.full(self.samples, -75, dtype=float)  # test
-
-    def autoRange(self):
-        # determine if the power units are nW, uW, mW, or W
-        self.range = next(index for index, listValue in enumerate(dB) if listValue > self.measuredPdBm)
-        if self.range > 0:
-            self.range += -1
-        ui.powerUnit.setText(str(Units[self.range]))
-        ui.powerWatts.setSuffix(str(Units[self.range]))
+        # update the moving pyqtgraph (uses sampled powers with no averaging)
+        powerCurve.setData(self.xAxis, Axis)
 
     def userRange(self):
         # set the units from the main steps of the slider
-        self.range = ui.rangeSlider.value()
-        ui.powerUnit.setText(Units[int(self.range)])
-        ui.powerWatts.setSuffix(Units[int(self.range)])
+        self.scale = ui.rangeSlider.value()
+        ui.powerUnit.setText(Units[int(self.scale)])
+        ui.powerWatts.setSuffix(Units[int(self.scale)])
 
 
 class modelView():
@@ -255,12 +284,19 @@ class modelView():
 ###############################################################################
 # other methods
 
+def spiError(message):
+    logging.info('SPI error function called')
+    ui.spiNoise.setText(message)
+
+
 def exit_handler():
-    meter.timer.stop()
+    meter.running = False
+    while meter.fifo.qsize() > 0:
+        time.sleep(0.2)  # allow time for the fifo queue to empty
     app.processEvents()
     config.disconnect()
     spi.close()
-    print('Closed')
+    logging.info('Closed')
 
 
 def importS2P():
@@ -283,7 +319,7 @@ def importS2P():
     # read the frequency and S21 data from the lists and insert into model
     deleteAllFreq()
     activeButtons(False)
-    print('Inserting ', len(Freq), ' records')
+    logging.info(f'Inserting {len(Freq)} records')
     for i in range(len(Freq)):
         parameters.insertData(index, Freq[i]/1e6, round(Loss[i], 3))  # 2 decimals plenty, 3 to minimise rounding error
         parameters.marker.setValue(Freq[i]/1e6)
@@ -297,7 +333,7 @@ def sumLosses():  # this might be better done with a relational query? (to avoid
     attenuators.updateModel()
     attenuators.loss = 0
 
-    # future - check for devices being used out of their freq range
+    # future - check for devices being used out of their operating freq band
 
     for i in range(attenuators.tm.rowCount()):
         freqList = []
@@ -351,7 +387,7 @@ def deleteFreq():  # delete parameter for the frequency shown in the GUI
 def deleteAllFreq():
     activeButtons(False)
     parameters.tm.sort(parameters.tm.fieldIndex('FreqMHz'), QtCore.Qt.AscendingOrder)
-    print('Deleting ', parameters.tm.rowCount(), ' records')
+    logging.info(f'Deleting {parameters.tm.rowCount()} records')
     for i in range(parameters.tm.rowCount()):
         try:
             parameters.marker.setValue((parameters.tm.record(i).value('FreqMHz')))
@@ -400,15 +436,19 @@ def addCal():
     calibration.dwm.toFirst()  # Cal values are set with freq=0 so new one is lowest
 
 
-def updateCal(uiCode):
+def updateCal(uiCode):  # change meter.dIn
     try:
         openSPI()
     except FileNotFoundError:
         popUp('No SPI device found', 'OK')
     else:
-        meter.readSPI()
+        dIn = spi.xfer([dOut, dOut])  # dOut = Pi to AD7887, MOSI. dIn = measurement result, MISO.
+        if dIn[0] > 13:
+            spiError('SPI error')  # anything > 13 is due to noise or spi errors
+            return
+        dIn = (dIn[0] << 8) + dIn[1]  # shift first byte to be MSB of a 12-bit word and add second byte
+        uiCode.setValue(dIn)
         spi.close()
-        uiCode.setValue(meter.dIn)
 
 
 def measHCode():
@@ -441,55 +481,29 @@ def openSPI():
     spi.max_speed_hz = 1953000
 
 
-def startMeter():
-    try:
-        openSPI()
-    except FileNotFoundError:
-        popUp('No SPI device found', 'OK')
-    else:
-        activeButtons(False)
-        sumLosses()
-        selectCal()
-        meter.averages = ui.averaging.value()
-        meter.counter = 0   # counts number of power readings
-        meter.setTimebase()
-        meter.runTime.start()  # A QElapsedTimer that measures how long meter has been running for
-        meter.timer.start()  # this timer calls readMeter method every time it re-starts
-
-        measurePower = Worker(meter.readSPI)
-        meter.threadpool.start(measurePower)
-
-
 def stopMeter():
-    meter.timer.stop()
-    # update the analog gauge widget
+
+    meter.running = False
+    while meter.fifo.qsize() > 0:
+        time.sleep(0.2)  # allow time for the fifo queue to empty
     ui.meterWidget.update_value(0, mouse_controlled=False)
     ui.powerWatts.setValue(0)
     ui.measurementRate.setValue(0)
     ui.sensorPower.setValue(-70)
     ui.inputPower.setValue(-70)
+    ui.spiNoise.setText('')
     activeButtons(True)
     spi.close()
 
 
-def readMeter():
-    meter.rate = meter.counter / (meter.runTime.elapsed()/1000)
-    meter.updateGUI()
-
-
 def slidersMoved():
-    if meter.timer.isActive():
+    if meter.running:
         stopMeter()
-        startMeter()
 
 
 def freqChanged():
-    if meter.timer.isActive():
-        stopMeter()
-        startMeter()
-    else:
-        sumLosses()
-        selectCal()
+    sumLosses()
+    selectCal()
     # deselect band radio buttons
     if ui.hamBands.checkedId() != -11:
         ui.GHzSlider.setEnabled(False)
@@ -568,6 +582,7 @@ def activeButtons(tF):
     ui.deleteCal.setEnabled(tF)
     ui.inUse.setEnabled(tF)
 
+
 ###############################################################################
 # Instantiate classes
 
@@ -590,11 +605,10 @@ attenuators.marker.setAngle(0)
 # adjust analog gauge meter
 ui.meterWidget.set_MaxValue(10)
 ui.meterWidget.set_enable_CenterPoint(enable=False)
-ui.meterWidget.set_enable_barGraph(enable=True)
 ui.meterWidget.set_enable_value_text(enable=False)
 ui.meterWidget.set_enable_filled_Polygon(enable=True)
-ui.meterWidget.set_start_scale_angle(90)
-ui.meterWidget.set_total_scale_angle_size(270)
+ui.meterWidget.set_start_scale_angle(135)
+ui.meterWidget.set_enable_ScaleText(enable=True)
 
 # pyqtgraph settings for power vs time display
 red = pyqtgraph.mkPen(color='r', width=1.0)
@@ -629,6 +643,19 @@ minLim = ui.slopeFreq.plot(fSpec, minSlope, pen='y')
 ###############################################################################
 # Connect signals from buttons and sliders
 
+# Display Tab
+ui.runButton.clicked.connect(meter.startMeasurement)
+ui.stopButton.clicked.connect(stopMeter)
+ui.freqBox.valueChanged.connect(freqChanged)
+ui.memorySize.valueChanged.connect(slidersMoved)
+ui.averaging.valueChanged.connect(slidersMoved)
+ui.hamBands.buttonClicked.connect(bandSelect)
+ui.rangeSlider.valueChanged.connect(meter.userRange)
+ui.autoRangeButton.clicked.connect(rangeSelect)
+ui.setRangeButton.clicked.connect(rangeSelect)
+parameters.marker.sigPositionChanged.connect(parameters.updateSpinBox)
+calibration.marker.sigPositionChanged.connect(calibration.updateSpinBox)
+
 # Devices Tab
 ui.nextDevice.clicked.connect(nextDevice)
 ui.previousDevice.clicked.connect(prevDevice)
@@ -652,19 +679,6 @@ ui.saveCal.clicked.connect(calibration.saveChanges)
 ui.measHigh.clicked.connect(measHCode)
 ui.measLow.clicked.connect(measLCode)
 ui.calibrate.clicked.connect(calibrate)
-
-# Display Tab
-ui.runButton.clicked.connect(startMeter)
-ui.stopButton.clicked.connect(stopMeter)
-ui.freqBox.valueChanged.connect(freqChanged)
-ui.memorySize.valueChanged.connect(slidersMoved)
-ui.averaging.valueChanged.connect(slidersMoved)
-ui.hamBands.buttonClicked.connect(bandSelect)
-ui.rangeSlider.valueChanged.connect(meter.userRange)
-ui.autoRangeButton.clicked.connect(rangeSelect)
-ui.setRangeButton.clicked.connect(rangeSelect)
-parameters.marker.sigPositionChanged.connect(parameters.updateSpinBox)
-calibration.marker.sigPositionChanged.connect(calibration.updateSpinBox)
 
 ###############################################################################
 # set up the application
@@ -697,7 +711,6 @@ sumLosses()
 selectCal()
 calibration.showCurve()
 
-meter.timer.timeout.connect(readMeter)  # A Qtimer defined in the Measurement Class init
 window.show()
 
 ###############################################################################
