@@ -14,7 +14,7 @@ import logging
 import numpy as np
 import queue
 from PyQt5 import QtWidgets, QtCore
-from PyQt5.QtCore import pyqtSlot, pyqtSignal, QRunnable, QObject, QThreadPool
+from PyQt5.QtCore import pyqtSlot, pyqtSignal, QRunnable, QObject, QThreadPool, QTimer
 from PyQt5.QtWidgets import QMessageBox, QFileDialog, QDataWidgetMapper
 from PyQt5.QtSql import QSqlDatabase, QSqlTableModel
 import spidev
@@ -94,6 +94,7 @@ class Worker(QRunnable):
 
         logging.info(f'{self.fn.__name__} thread running')
         self.fn()
+        logging.info(f'{self.fn.__name__} thread ended')
 
 
 class Measurement():
@@ -104,7 +105,7 @@ class Measurement():
         self.sampleTimer = QtCore.QElapsedTimer()
         self.runTimer = QtCore.QElapsedTimer()
         self.sampleCounter = 0
-        self.block = 500
+        self.block = 5000
         self.signals = WorkerSignals()
         self.signals.result.connect(self.updateGUI)
         self.signals.error.connect(spiError)
@@ -144,7 +145,6 @@ class Measurement():
                 buffer[i] = self.fifo.get(block=True, timeout=None)  # pop measurement from FIFO queue
             buffer = np.divide(buffer, calibration.slope)
             buffer = np.add(buffer, calibration.intercept)
-            self.runTimer.start()
             self.yAxis = np.roll(self.yAxis, -self.block)  # roll the array left
             self.yAxis[-self.block:] = buffer  # over-write rolled data with new data
             averagePower = np.average(self.yAxis[-self.averages:])
@@ -296,7 +296,7 @@ def exit_handler():
     app.processEvents()
     config.disconnect()
     spi.close()
-    logging.info('Closed cleanly')
+    logging.info('Closed')
 
 
 def importS2P():
