@@ -1,6 +1,6 @@
 # RF Power Meter
 
-Python AD8318 RF Power Meter application for the Raspberry Pi using a PyQT5 GUI.  Multi-threaded and capable of over 12,000 measurements per second.
+Python AD8318 RF Power Meter application for the Raspberry Pi using a PyQT5 GUI.  Multi-threaded and capable of over 45,000 measurements per second when using a Pi4b, or 12,000 using a Pi3b.
 
 The AD8318 Digital RF Power Detector pcb is by made by SV1AFN and communicates with the Pi using SPI.  Calibration and Attenuator data is stored in a SQLite database.  https://www.sv1afn.com/en/products/ad8318-digital-rf-power-detector.html
 
