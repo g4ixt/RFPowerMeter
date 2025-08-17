@@ -9,18 +9,17 @@ This code makes use of a subset of the code from touchstone.py from scikit-rf, a
 Python package for RF and Microwave applications.
 """
 
-import time
 import logging
 import numpy as np
 import queue
-from PyQt5 import QtWidgets, QtCore
-from PyQt5.QtCore import pyqtSlot, pyqtSignal, QRunnable, QObject, QThreadPool, QTimer
-from PyQt5.QtWidgets import QMessageBox, QFileDialog, QDataWidgetMapper
-from PyQt5.QtSql import QSqlDatabase, QSqlTableModel
+from PyQt6 import QtWidgets, QtCore, uic
+from PyQt6.QtCore import pyqtSlot, pyqtSignal, QRunnable, QObject, QThreadPool
+from PyQt6.QtWidgets import QMessageBox, QFileDialog, QDataWidgetMapper
+from PyQt6.QtSql import QSqlDatabase, QSqlTableModel
 import spidev
 import pyqtgraph
-import QtPowerMeter  # the GUI
 from touchstone_subset import Touchstone  # for importing S2P files
+
 spi = spidev.SpiDev()
 threadpool = QThreadPool()
 
@@ -57,6 +56,7 @@ class database():
             logging.info('Open database')
             self.db.setDatabaseName('powerMeter.db')
             self.db.open()
+            logging.info(f'open: {self.db.isOpen()}  Connection = "{self.db.connectionName()}"')
         else:
             logging.info('Database file missing')
             msg = QMessageBox()
@@ -73,11 +73,12 @@ class database():
         del parameters.tm
         del calibration.tm
         self.db.close()
+        QSqlDatabase.removeDatabase(self.db.databaseName())
 
 
 class WorkerSignals(QObject):
     error = pyqtSignal(str)
-    result = pyqtSignal(np.ndarray, float, float)
+    # result = pyqtSignal(list)
 
 
 class Worker(QRunnable):
@@ -105,15 +106,16 @@ class Measurement():
         self.sampleTimer = QtCore.QElapsedTimer()
         self.runTimer = QtCore.QElapsedTimer()
         self.sampleCounter = 0
-        self.block = 5000
         self.signals = WorkerSignals()
-        self.signals.result.connect(self.updateGUI)
+        # self.signals.result.connect(self.updateGUI)
         self.signals.error.connect(spiError)
+        self.buffer_size = 500
         self.fifo = queue.SimpleQueue()
+        self.gui_update_timer = QtCore.QTimer()
+        self.gui_update_timer.timeout.connect(self.calcPowers)
 
     def startMeasurement(self):
         self.spiTransaction = Worker(self.readSPI)  # workers are auto-deleted when thread stops
-        self.powerResults = Worker(self.calcPowers)
         try:
             openSPI()
         except FileNotFoundError:
@@ -126,30 +128,43 @@ class Measurement():
             self.setTimebase()
             self.sampleCounter = 0
             self.sampleTimer.start()
+            # self.buffer = np.zeros(self.block, dtype=float)  # a buffer is necessary for high sample rate
+            self.gui_update_timer.start(50)
             threadpool.start(self.spiTransaction)
-            threadpool.start(self.powerResults)
 
-    def readSPI(self):  # always threaded
+    def readSPI(self):  # runs in separate thread
+        i = 0
+        buffer = np.zeros(self.buffer_size, dtype=float)
         while self.running:
-            dIn = spi.xfer([dOut, dOut])  # dOut = Pi to AD7887, MOSI. dIn = measurement result, MISO.
-            if dIn[0] > 13:
-                self.signals.error.emit('SPI error')  # anything > 13 is due to noise or spi errors
-                return
-            dIn = (dIn[0] << 8) + dIn[1]  # shift first byte to be MSB of a 12-bit word and add second byte
-            self.fifo.put(dIn)  # put measurement onto FIFO queue
+            if i < self.buffer_size:
+                dIn = spi.xfer([dOut, dOut])  # dOut = Pi to AD7887, MOSI. dIn = measurement result, MISO.
+                if dIn[0] > 13:
+                    self.signals.error.emit('SPI error')  # anything > 13 is due to noise or spi errors
+                    return
+                dIn = (dIn[0] << 8) + dIn[1]  # shift first byte to be MSB of a 12-bit word and add second byte
+                buffer[i] = dIn
+                i += 1
+            else:
+                i = 0
+                powers = np.add(np.divide(buffer, calibration.slope), calibration.intercept)
+                self.fifo.put(powers)
 
-    def calcPowers(self):  # always threaded
-        buffer = np.zeros(self.block, dtype=float)  # a buffer is necessary for high sample rate
-        while self.running or self.fifo.qsize() > 0:  # empty the fifo queue on stop, or App hangs
-            for i in range(self.block):
-                buffer[i] = self.fifo.get(block=True, timeout=None)  # pop measurement from FIFO queue
-            buffer = np.divide(buffer, calibration.slope)
-            buffer = np.add(buffer, calibration.intercept)
-            self.yAxis = np.roll(self.yAxis, -self.block)  # roll the array left
-            self.yAxis[-self.block:] = buffer  # over-write rolled data with new data
-            averagePower = np.average(self.yAxis[-self.averages:])
-            measuredPdBm = averagePower - attenuators.loss  # subtract total loss of couplers and attenuators
-            self.signals.result.emit(self.yAxis, averagePower, measuredPdBm)  # pass to UpdateGUI
+    def calcPowers(self):
+        queue_size = self.fifo.qsize()
+        for i in range(queue_size):
+            buffer = self.fifo.get(block=True, timeout=None)  # pop measurement from FIFO queue
+            self.yAxis = np.roll(self.yAxis, self.buffer_size)  # roll the array right
+            self.yAxis[0:self.buffer_size] = buffer  # over-write rolled data with current data
+        avgP = np.average(self.yAxis[:self.averages])
+        PdBm = np.subtract(avgP, attenuators.loss)  # correct for couplers and attenuators
+
+        run_time = self.sampleTimer.restart() / 1e3  # convert mS to S
+        sample_rate = int(self.buffer_size * queue_size / run_time)
+        logging.debug(f'calcPowers: sample_rate = {sample_rate}  avgP = {avgP} PdBm = {PdBm}')
+
+        Axis = self.yAxis
+
+        self.updateGUI(Axis, avgP, PdBm, sample_rate)
 
     def setTimebase(self):
         self.samples = ui.memorySize.value() * 1000  # memory size in kSamples
@@ -157,7 +172,7 @@ class Measurement():
         self.xAxis = np.arange(0, self.samples, 1, dtype=int)  # fill the np array with consecutive integers
         self.yAxis = np.full(self.samples, -75, dtype=float)  # fill the np array with each element = 75
 
-    def updateGUI(self, Axis, avgP, PdBm):
+    def updateGUI(self, Axis, avgP, PdBm, sample_rate):
         # update power meter range and label
         if ui.autoRangeButton.isChecked():
             try:
@@ -171,27 +186,25 @@ class Measurement():
                 stopMeter()
                 return
         else:
-            self.userRange  # set the units from the main steps of the slider
+            self.userRange()  # set the units from the main steps of the slider
 
         # convert to display according to meter range selected
         power = 10 ** ((PdBm - dB[self.scale-1]) / 10)
-        ui.meterWidget.set_MaxValue(10.0)  # a max of 1 on the widget doesn't work
+        ui.meter_widget.set_MaxValue(10.0)  # a max of 1 on the widget doesn't work
         if power >= 1:
-            ui.meterWidget.set_MaxValue(10.0)
+            ui.meter_widget.set_MaxValue(10.0)
         if power >= 10:
-            ui.meterWidget.set_MaxValue(100.0)
+            ui.meter_widget.set_MaxValue(100.0)
         if power >= 100:
-            ui.meterWidget.set_MaxValue(1000.0)
+            ui.meter_widget.set_MaxValue(1000.0)
 
         # update boxes on Display tab (uses the average powers)
-        self.sampleCounter += self.block
-        sampleRate = self.sampleCounter / (self.sampleTimer.nsecsElapsed()/1e9)
-        ui.measurementRate.setValue(sampleRate)
+        ui.measurementRate.setValue(sample_rate)
         ui.sensorPower.setValue(avgP)
         ui.inputPower.setValue(PdBm)
 
         # update the analogue gauge widget (uses the average powers)
-        ui.meterWidget.update_value(power, mouse_controlled=False)
+        ui.meter_widget.update_value(power, mouse_controlled=False)
         ui.powerWatts.setValue(power)
 
         # update the moving pyqtgraph (uses sampled powers with no averaging)
@@ -221,7 +234,7 @@ class modelView():
         # add exception handling?
         self.tm.setTable(self.table)
         self.dwm.setModel(self.tm)
-        self.dwm.setSubmitPolicy(QDataWidgetMapper.ManualSubmit)
+        self.dwm.setSubmitPolicy(QDataWidgetMapper.SubmitPolicy.ManualSubmit)
 
     def insertData(self, AssetID, Freq, Loss):  # used by ImportS2P
         record = self.tm.record()
@@ -234,7 +247,6 @@ class modelView():
         self.tm.insertRecord(-1, record)
         self.updateModel()
         self.dwm.submit()
-        app.processEvents()
 
     def saveChanges(self):
         self.dwm.submit()
@@ -250,7 +262,6 @@ class modelView():
         self.dwm.toPrevious()
         self.tm.removeRow(cI)
         self.tm.submit()
-        app.processEvents()
 
     def updateModel(self):  # model must be re-populated when python code changes data
         self.tm.select()
@@ -263,7 +274,7 @@ class modelView():
         curveType = 'ValuedB'
         if self.table == 'Calibration':
             curveType = 'Slope'
-        self.tm.sort(self.tm.fieldIndex('FreqMHz'), QtCore.Qt.AscendingOrder)
+        self.tm.sort(self.tm.fieldIndex('FreqMHz'), QtCore.Qt.SortOrder.AscendingOrder)
         #  iterate through selected values and display on graph
         for i in range(0, self.tm.rowCount()):
             freqs.append(self.tm.record(i).value('FreqMHz'))
@@ -285,15 +296,14 @@ class modelView():
 # other methods
 
 def spiError(message):
-    logging.info('SPI error function called')
+    logging.info('SPI error')
     ui.spiNoise.setText(message)
 
 
 def exit_handler():
     meter.running = False
     while meter.fifo.qsize() > 0:
-        time.sleep(0.2)  # allow time for the fifo queue to empty
-    app.processEvents()
+        meter.fifo.get()
     config.disconnect()
     spi.close()
     logging.info('Closed')
@@ -341,7 +351,8 @@ def sumLosses():  # this might be better done with a relational query? (to avoid
         deviceRecord = attenuators.tm.record(i)
         asid = deviceRecord.value('AssetID')
         parameters.tm.setFilter('AssetID =' + str(asid))  # filter to only parameters of device i
-        parameters.tm.sort(1, 0)  # sort by frequency, ascending: required for numpy interpolate
+        # sort by frequency, ascending: required for numpy interpolate
+        parameters.tm.sort(1, QtCore.Qt.SortOrder.AscendingOrder)
 
         # copy the parameters into lists.  There must be a better way...
         for j in range(parameters.tm.rowCount()):
@@ -368,7 +379,7 @@ def selectCal():
 
 
 def popUp(message, button):
-    msg = QMessageBox(parent=(window))
+    msg = QMessageBox(parent=(ui))
     msg.setIcon(QMessageBox.Warning)
     msg.setText(message)
     msg.addButton(button, QMessageBox.ActionRole)
@@ -386,7 +397,7 @@ def deleteFreq():  # delete parameter for the frequency shown in the GUI
 
 def deleteAllFreq():
     activeButtons(False)
-    parameters.tm.sort(parameters.tm.fieldIndex('FreqMHz'), QtCore.Qt.AscendingOrder)
+    parameters.tm.sort(parameters.tm.fieldIndex('FreqMHz'), QtCore.Qt.SortOrder.AscendingOrder)
     logging.info(f'Deleting {parameters.tm.rowCount()} records')
     for i in range(parameters.tm.rowCount()):
         try:
@@ -395,7 +406,6 @@ def deleteAllFreq():
             parameters.marker.setValue((parameters.tm.record(0).value('FreqMHz')))
         parameters.tm.removeRow(i)
         parameters.tm.submit()
-        app.processEvents()
     parameters.tm.select()
     parameters.showCurve()
     activeButtons(True)
@@ -482,11 +492,8 @@ def openSPI():
 
 
 def stopMeter():
-
     meter.running = False
-    while meter.fifo.qsize() > 0:
-        time.sleep(0.2)  # allow time for the fifo queue to empty
-    ui.meterWidget.update_value(0, mouse_controlled=False)
+    meter.gui_update_timer.stop()  # stop timer
     ui.powerWatts.setValue(0)
     ui.measurementRate.setValue(0)
     ui.sensorPower.setValue(-70)
@@ -589,10 +596,14 @@ def activeButtons(tF):
 config = database()
 config.connect()
 meter = Measurement()
+
 app = QtWidgets.QApplication([])  # create QApplication for the GUI
-window = QtWidgets.QMainWindow()
-ui = QtPowerMeter.Ui_MainWindow()
-ui.setupUi(window)
+app.setApplicationName('QtRFPower')
+app.setApplicationVersion(' v0.98')
+
+# create QApplication for the GUI
+ui = uic.loadUi("powerMeter.ui")
+
 attenuators = modelView('Device', ui.deviceGraph)
 calibration = modelView('Calibration', ui.slopeFreq)
 parameters = modelView('deviceParameters', ui.deviceGraph)
@@ -603,16 +614,16 @@ attenuators.marker.setAngle(0)
 # GUI settings
 
 # adjust analog gauge meter
-ui.meterWidget.set_MaxValue(10)
-ui.meterWidget.set_enable_CenterPoint(enable=False)
-ui.meterWidget.set_enable_value_text(enable=False)
-ui.meterWidget.set_enable_filled_Polygon(enable=True)
-ui.meterWidget.set_start_scale_angle(135)
-ui.meterWidget.set_enable_ScaleText(enable=True)
+ui.meter_widget.set_MaxValue(10)
+ui.meter_widget.set_enable_CenterPoint(enable=False)
+ui.meter_widget.set_enable_value_text(enable=False)
+ui.meter_widget.set_enable_filled_Polygon(enable=True)
+ui.meter_widget.set_start_scale_angle(135)
+ui.meter_widget.set_enable_ScaleText(enable=True)
 
 # pyqtgraph settings for power vs time display
 red = pyqtgraph.mkPen(color='r', width=1.0)
-blue = pyqtgraph.mkPen(color='c', width=0.5, style=QtCore.Qt.DashLine)
+blue = pyqtgraph.mkPen(color='c', width=0.5, style=QtCore.Qt.PenStyle.DashLine)
 yellow = pyqtgraph.mkPen(color='y', width=1.0)
 ui.graphWidget.setYRange(-60, 10)
 ui.graphWidget.setBackground('k')  # black
@@ -711,7 +722,8 @@ sumLosses()
 selectCal()
 calibration.showCurve()
 
-window.show()
+# window.show()
+ui.show()
 
 ###############################################################################
 # run the application until the user closes it

@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1024</width>
+    <width>1000</width>
     <height>600</height>
    </rect>
   </property>
@@ -558,7 +558,7 @@
              <number>0</number>
             </property>
             <property name="maximum">
-             <double>50000.000000000000000</double>
+             <double>100000.000000000000000</double>
             </property>
            </widget>
           </item>
@@ -1006,6 +1006,26 @@
         </item>
         <item row="0" column="0">
          <layout class="QGridLayout" name="gridLayout_10">
+          <item row="1" column="0">
+           <widget class="QLabel" name="powerUnit">
+            <property name="font">
+             <font>
+              <pointsize>12</pointsize>
+              <weight>75</weight>
+              <bold>true</bold>
+             </font>
+            </property>
+            <property name="layoutDirection">
+             <enum>Qt::LeftToRight</enum>
+            </property>
+            <property name="text">
+             <string>Auto</string>
+            </property>
+            <property name="alignment">
+             <set>Qt::AlignCenter</set>
+            </property>
+           </widget>
+          </item>
           <item row="1" column="4">
            <widget class="QLabel" name="label_6">
             <property name="font">
@@ -1022,6 +1042,22 @@ Size</string>
             </property>
             <property name="wordWrap">
              <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="2" colspan="2">
+           <widget class="PlotWidget" name="graphWidget" native="true">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="autoFillBackground">
+             <bool>true</bool>
+            </property>
+            <property name="styleSheet">
+             <string notr="true"/>
             </property>
            </widget>
           </item>
@@ -1049,26 +1085,6 @@ Size</string>
             </property>
             <property name="text">
              <string/>
-            </property>
-            <property name="alignment">
-             <set>Qt::AlignCenter</set>
-            </property>
-           </widget>
-          </item>
-          <item row="1" column="0">
-           <widget class="QLabel" name="powerUnit">
-            <property name="font">
-             <font>
-              <pointsize>12</pointsize>
-              <weight>75</weight>
-              <bold>true</bold>
-             </font>
-            </property>
-            <property name="layoutDirection">
-             <enum>Qt::LeftToRight</enum>
-            </property>
-            <property name="text">
-             <string>Auto</string>
             </property>
             <property name="alignment">
              <set>Qt::AlignCenter</set>
@@ -1106,22 +1122,6 @@ Size</string>
             </property>
             <property name="tickInterval">
              <number>10</number>
-            </property>
-           </widget>
-          </item>
-          <item row="0" column="0">
-           <widget class="AnalogGaugeWidget" name="meterWidget" native="true">
-            <property name="sizePolicy">
-             <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-              <horstretch>0</horstretch>
-              <verstretch>0</verstretch>
-             </sizepolicy>
-            </property>
-            <property name="autoFillBackground">
-             <bool>true</bool>
-            </property>
-            <property name="styleSheet">
-             <string notr="true"/>
             </property>
            </widget>
           </item>
@@ -1184,21 +1184,8 @@ Average</string>
             </property>
            </widget>
           </item>
-          <item row="0" column="2" colspan="2">
-           <widget class="PlotWidget" name="graphWidget" native="true">
-            <property name="sizePolicy">
-             <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-              <horstretch>0</horstretch>
-              <verstretch>0</verstretch>
-             </sizepolicy>
-            </property>
-            <property name="autoFillBackground">
-             <bool>true</bool>
-            </property>
-            <property name="styleSheet">
-             <string notr="true"/>
-            </property>
-           </widget>
+          <item row="0" column="0">
+           <widget class="AnalogGaugeWidget" name="meter_widget" native="true"/>
           </item>
          </layout>
         </item>
@@ -2541,7 +2528,7 @@ Average</string>
   <customwidget>
    <class>AnalogGaugeWidget</class>
    <extends>QWidget</extends>
-   <header>analoggaugewidget</header>
+   <header location="global">analoggaugewidget</header>
    <container>1</container>
    <slots>
     <signal>valueChanged(int)</signal>
