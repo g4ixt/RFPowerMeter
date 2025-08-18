@@ -12,6 +12,11 @@ Python package for RF and Microwave applications.
 import logging
 import numpy as np
 import queue
+import time
+
+from multiprocessing import Process, freeze_support, Event
+from multiprocessing import Queue as mpq
+
 from PyQt6 import QtWidgets, QtCore, uic
 from PyQt6.QtCore import pyqtSlot, pyqtSignal, QRunnable, QObject, QThreadPool
 from PyQt6.QtWidgets import QMessageBox, QFileDialog, QDataWidgetMapper
@@ -76,12 +81,12 @@ class database():
         QSqlDatabase.removeDatabase(self.db.databaseName())
 
 
-class WorkerSignals(QObject):
+class WorkerSignals(QObject):  # not used
     error = pyqtSignal(str)
-    # result = pyqtSignal(list)
+    result = pyqtSignal(list)
 
 
-class Worker(QRunnable):
+class Worker(QRunnable):  # not used
     '''Worker threads so that measurements can run outside GUI event loop'''
 
     def __init__(self, fn):
@@ -102,20 +107,19 @@ class Measurement():
     '''Read AD8318 RF Power value via AD7887 ADC using the Serial Peripheral Interface (SPI)'''
 
     def __init__(self):
-        self.running = False
+        self.mp_running = Event()
         self.sampleTimer = QtCore.QElapsedTimer()
         self.runTimer = QtCore.QElapsedTimer()
-        self.sampleCounter = 0
+        self.sample_rates = np.full(50, 50000)
         self.signals = WorkerSignals()
-        # self.signals.result.connect(self.updateGUI)
         self.signals.error.connect(spiError)
         self.buffer_size = 500
         self.fifo = queue.SimpleQueue()
         self.gui_update_timer = QtCore.QTimer()
         self.gui_update_timer.timeout.connect(self.calcPowers)
+        self.mp_fifo = mpq()
 
     def startMeasurement(self):
-        self.spiTransaction = Worker(self.readSPI)  # workers are auto-deleted when thread stops
         try:
             openSPI()
         except FileNotFoundError:
@@ -124,18 +128,23 @@ class Measurement():
             activeButtons(False)
             selectCal()
             sumLosses()
-            self.running = True
+            self.mp_running.set()
             self.setTimebase()
             self.sampleCounter = 0
             self.sampleTimer.start()
-            # self.buffer = np.zeros(self.block, dtype=float)  # a buffer is necessary for high sample rate
             self.gui_update_timer.start(50)
-            threadpool.start(self.spiTransaction)
+            if __name__ == '__main__':  # prevents the subprocess from launching another subprocess
+                freeze_support()
+                self.spiTransaction = Process(target=self.readSPI,
+                                              args=(dOut, calibration.slope, calibration.intercept))
+                self.spiTransaction.start()
 
-    def readSPI(self):  # runs in separate thread
+    def readSPI(self, dOut, slope, intercept):  # runs as a separate process
+        logging.debug(f'dOut = {dOut} slope = {slope} intercept = {intercept}')
         i = 0
+        enabled = self.mp_running.is_set()  # if tested every while loop, it slows measurement by ~20%
         buffer = np.zeros(self.buffer_size, dtype=float)
-        while self.running:
+        while enabled:
             if i < self.buffer_size:
                 dIn = spi.xfer([dOut, dOut])  # dOut = Pi to AD7887, MOSI. dIn = measurement result, MISO.
                 if dIn[0] > 13:
@@ -146,25 +155,34 @@ class Measurement():
                 i += 1
             else:
                 i = 0
-                powers = np.add(np.divide(buffer, calibration.slope), calibration.intercept)
-                self.fifo.put(powers)
+                powers = np.add(np.divide(buffer, slope), intercept)
+                self.mp_fifo.put(powers)
+                enabled = self.mp_running.is_set()
 
     def calcPowers(self):
-        queue_size = self.fifo.qsize()
+        queue_size = self.mp_fifo.qsize()  # mp queue size is not totally reliable
         for i in range(queue_size):
-            buffer = self.fifo.get(block=True, timeout=None)  # pop measurement from FIFO queue
-            self.yAxis = np.roll(self.yAxis, self.buffer_size)  # roll the array right
-            self.yAxis[0:self.buffer_size] = buffer  # over-write rolled data with current data
+            buffer = self.mp_fifo.get(block=True, timeout=None)  # pop measurement from FIFO queue
+            self.yAxis = np.roll(self.yAxis, -self.buffer_size)  # roll the array left
+            self.yAxis[-self.buffer_size:] = buffer  # over-write rolled data with current data
         avgP = np.average(self.yAxis[:self.averages])
         PdBm = np.subtract(avgP, attenuators.loss)  # correct for couplers and attenuators
 
-        run_time = self.sampleTimer.restart() / 1e3  # convert mS to S
-        sample_rate = int(self.buffer_size * queue_size / run_time)
-        logging.debug(f'calcPowers: sample_rate = {sample_rate}  avgP = {avgP} PdBm = {PdBm}')
+        run_time = self.sampleTimer.nsecsElapsed() / 1e9  # convert nS to S
+        self.sample_rates = np.roll(self.sample_rates, 1)
+        self.sample_rates[0] = int((self.buffer_size * queue_size) / run_time)
+        sample_rate = np.mean(self.sample_rates)
+        self.sampleTimer.restart()
+
+        logging.debug(f'calcPowers: sample_rate = {sample_rate} rates = {self.sample_rates}')
 
         Axis = self.yAxis
 
         self.updateGUI(Axis, avgP, PdBm, sample_rate)
+
+    def running_mean(self, x, N):
+        cumsum = np.cumsum(np.insert(x, 0, 0))
+        return (cumsum[N:] - cumsum[:-N]) / float(N)
 
     def setTimebase(self):
         self.samples = ui.memorySize.value() * 1000  # memory size in kSamples
@@ -301,7 +319,8 @@ def spiError(message):
 
 
 def exit_handler():
-    meter.running = False
+    # meter.running = False
+    meter.mp_running.clear()
     while meter.fifo.qsize() > 0:
         meter.fifo.get()
     config.disconnect()
@@ -492,7 +511,11 @@ def openSPI():
 
 
 def stopMeter():
-    meter.running = False
+    meter.mp_running.clear()
+    while meter.spiTransaction.is_alive():
+        logging.info('waiting for spiTransaction process to stop')
+        time.sleep(0.01)
+    logging.info('spiTransaction process stopped')
     meter.gui_update_timer.stop()  # stop timer
     ui.powerWatts.setValue(0)
     ui.measurementRate.setValue(0)
@@ -504,7 +527,7 @@ def stopMeter():
 
 
 def slidersMoved():
-    if meter.running:
+    if meter.mp_running:
         stopMeter()
 
 
@@ -599,7 +622,7 @@ meter = Measurement()
 
 app = QtWidgets.QApplication([])  # create QApplication for the GUI
 app.setApplicationName('QtRFPower')
-app.setApplicationVersion(' v0.98')
+app.setApplicationVersion(' v0.99')
 
 # create QApplication for the GUI
 ui = uic.loadUi("powerMeter.ui")
@@ -722,7 +745,6 @@ sumLosses()
 selectCal()
 calibration.showCurve()
 
-# window.show()
 ui.show()
 
 ###############################################################################
