@@ -23,21 +23,22 @@
 
 import math
 
-from PyQt6.QtWidgets import QMainWindow
-
-from PyQt6.QtWidgets import QWidget
-from PyQt6.QtWidgets import QApplication
-# QtWidgets -> QWidget
-# QtWidgets -> QApplication
-
-from PyQt6.QtGui import QPolygon, QPolygonF, QColor, QPen, QFont
-from PyQt6.QtGui import QPainter, QFontMetrics, QConicalGradient
-# QtGui -> QPolygon, QPolygonF, QColor, QPen, QFont, QPainter, QFontMetrics, QConicalGradient
-
-from PyQt6.QtCore import Qt ,QTime, QTimer, QPoint, QPointF, QRect, QSize
-from PyQt6.QtCore import QObject, pyqtSignal
-# QtCore -> Qt.NoPen ,QTime, QTimer, QPoint, QPointF, QRect, QSize
-
+try:
+    from PyQt6.QtWidgets import QMainWindow
+    from PyQt6.QtWidgets import QWidget
+    from PyQt6.QtWidgets import QApplication
+    from PyQt6.QtGui import QPolygon, QPolygonF, QColor, QPen, QFont
+    from PyQt6.QtGui import QPainter, QFontMetrics, QConicalGradient
+    from PyQt6.QtCore import Qt ,QTime, QTimer, QPoint, QPointF, QRect, QSize
+    from PyQt6.QtCore import QObject, pyqtSignal
+except ModuleNotFoundError:
+    from PyQt5.QtWidgets import QMainWindow
+    from PyQt5.QtWidgets import QWidget
+    from PyQt5.QtWidgets import QApplication
+    from PyQt5.QtGui import QPolygon, QPolygonF, QColor, QPen, QFont
+    from PyQt5.QtGui import QPainter, QFontMetrics, QConicalGradient
+    from PyQt5.QtCore import Qt ,QTime, QTimer, QPoint, QPointF, QRect, QSize
+    from PyQt5.QtCore import QObject, pyqtSignal
 
 ##########################################
 # todo: Dokumentieren
@@ -403,7 +404,7 @@ class AnalogGaugeWidget(QWidget):
         # print(type(color_array))
         if 'list' in str(type(color_array)):
             self.scale_polygon_colors = color_array
-        elif color_array == None:
+        elif color_array is None:
             self.scale_polygon_colors = [[.0, Qt.transparent]]
         else:
             self.scale_polygon_colors = [[.0, Qt.transparent]]
