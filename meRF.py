@@ -207,7 +207,7 @@ class Measurement():
             self.userRange()  # set the units from the combo box
 
         # convert to display according to meter range selected
-        power = 10 ** ((PdBm - dB[self.scale]) / 10)
+        power = 10 ** ((PdBm - dB[self.scale - 1]) / 10)
         ui.meter_widget.set_MaxValue(10.0)  # a max of 1 on the widget doesn't work
         if power >= 1:
             ui.meter_widget.set_MaxValue(10.0)
@@ -230,12 +230,9 @@ class Measurement():
 
     def userRange(self):
         # set the units from the combo box
-        self.scale = ui.rangeBox.currentIndex()
-        if self.scale > 0:
-            ui.powerUnit.setText(Units[int(self.scale)])
-            ui.powerWatts.setSuffix(Units[int(self.scale)])
-        else:
-            ui.powerUnit.setText('Auto Range')
+        self.scale = ui.rangeBox.currentIndex() - 1
+        ui.powerUnit.setText(ui.rangeBox.currentText())
+        ui.powerWatts.setSuffix(Units[self.scale])
 
 
 class ModelView():
@@ -255,7 +252,7 @@ class ModelView():
         # add exception handling?
         self.tm.setTable(self.table)
 
-    def insertData(self, **data):  # used by ImportS2P
+    def insertData(self, **data):  # used by ImportS2P, addFreq, addDevice, addCal
         record = self.tm.record()
         for key, value in data.items():
             logging.debug(f'insertData: key = {key} value={value}')
@@ -263,66 +260,56 @@ class ModelView():
         self.tm.insertRecord(-1, record)
         self.updateModel()
 
-    def saveChanges(self):
-        sumLosses()
-        selectCal()
-        if self.table != 'Calibration':
-            parameters.tm.setFilter('AssetID =' + str(ui.assetID.value()))
-        if self.table != 'Device':
-            self.showCurve()
-
     def deleteRow(self):
-        if self.row is not None:
-            self.tm.removeRow(self.row)
-            self.tm.submit()
-            self.row = None
-        else:
+        if self.row is None:
             popUp('No row selected', 'Ok', 'Warn')
+            return
+        self.tm.removeRow(self.row)
+        self.tm.submit()
 
     def update_row(self, **data):
-        if self.row is not None:
-            record = self.tm.record(self.row)
-            for key, value in data.items():
-                logging.debug(f'update_row: key = {key} value={value}')
-                record.setValue(str(key), value)
-            self.tm.setRecord(self.row, record)
-            self.updateModel()
-        else:
+        if self.row is None:
             popUp('No row selected', 'Ok', 'Warn')
+            return
+        record = self.tm.record(self.row)
+        for key, value in data.items():
+            logging.debug(f'update_row: key = {key} value={value}')
+            record.setValue(str(key), value)
+        self.tm.setRecord(self.row, record)
+        self.updateModel()
 
     def updateModel(self):  # model must be re-populated when python code changes data
         self.tm.select()
         self.tm.layoutChanged.emit()
 
-    def showCurve(self):
+    def showCurve(self, curve):
         # plot calibration slope or device loss in GUI
+        self.unlimited()
         freqs = []
         y = []
-        curveType = 'ValuedB'
-        if self.table == 'Calibration':
-            curveType = 'Slope'
         self.tm.sort(self.tm.fieldIndex('FreqMHz'), QtCore.Qt.SortOrder.AscendingOrder)
+
         #  iterate through selected values and display on graph
         for i in range(0, self.tm.rowCount()):
             freqs.append(self.tm.record(i).value('FreqMHz'))
-            y.append(self.tm.record(i).value(curveType))
+            y.append(self.tm.record(i).value(curve))
         self.curve.setData(freqs, y)
 
-    def update_level(self):
+    def update_level(self, curve):
         # update marker label with level
         try:
             for i in range(self.tm.rowCount()):
                 if self.tm.record(i).value('FreqMHz') >= self.marker.value():
-                    self.marker.label.setText(f'{self.tm.record(i).value("ValuedB"):.2f} dB')
+                    self.marker.label.setText(f'{self.tm.record(i).value(curve):.2f} dB')
                     break
         except TypeError:
+            logging.info('update_level: TypeError')
             return
 
-    def table_clicked(self, table):
-        self.row = table.currentIndex().row()  # the row index from the QModelIndexObject
+    def table_clicked(self, ui_table):
+        self.row = ui_table.currentIndex().row()  # the row index from the QModelIndexObject
         record = self.tm.record(self.row)
-        logging.debug(f'table_clicked: row {self.row} clicked')
-        self.marker.label.setText(f'{record.value("Part")} {record.value("Description")}')
+        logging.debug(f'table_clicked: {self.table} row {self.row} clicked')
         return record
 
     def table_header(self):
@@ -332,53 +319,57 @@ class ModelView():
         return header
 
     def update_code(self, code):  # change meter.dIn
-        if self.row is not None:
-            try:
-                openSPI()
-            except FileNotFoundError:
-                popUp('No SPI device found', 'Ok', 'Critical')
-            else:
-                dIn = spi.xfer([dOut, dOut])  # dOut = Pi to AD7887, MOSI. dIn = measurement result, MISO.
-                if dIn[0] > 13:
-                    spiError('SPI error')  # anything > 13 is due to noise or spi errors
-                    return
-                dIn = (dIn[0] << 8) + dIn[1]  # shift first byte to be MSB of a 12-bit word and add second byte
-                self.update_row(code=dIn)
-                ui.cal_table.selectRow(self.row)
-                spi.close()
-        else:
+        if self.row is None:
             popUp('No row selected', 'Ok', 'Warn')
+            return
+        try:
+            openSPI()
+        except FileNotFoundError:
+            popUp('No SPI device found', 'Ok', 'Critical')
+        else:
+            dIn = spi.xfer([dOut, dOut])  # dOut = Pi to AD7887, MOSI. dIn = measurement result, MISO.
+            if dIn[0] > 13:
+                spiError(f'SPI error. dIn={dIn}')  # anything > 13 is due to noise or spi errors
+                return
+            dIn = (dIn[0] << 8) + dIn[1]  # shift first byte to be MSB of a 12-bit word and add second byte
+            self.update_row(code=dIn)
+            ui.cal_table.selectRow(self.row)
+            spi.close()
 
     def calibrate(self):
         # Formula from AD8318 data sheet.  AD8318 transfer function slope is negative, higher RF power = lower ADC code
-        if self.row is not None:
-            record = self.tm.record(self.row)
-            high = record.value('HighCode')
-            low = record.value('LowCode')
-            cal_high = record.value('CalHighdBm')
-            cal_low = record.value('CalLowdBm')
-            if 0 not in (high, low, cal_high, cal_low):
-                slope = (high - low)/(cal_high - cal_low)
-                intercept = cal_high - (high / slope)
-                self.update_row(Intercept=intercept, Slope=slope)
-                ui.cal_table.selectRow(self.row)
-            else:
-                popUp('One or all of the ADC Codes/calibration values are zero', 'Ok', 'Warn')
-        else:
+        if self.row is None:
             popUp('No row selected', 'Ok', 'Warn')
+            return
+        record = self.tm.record(self.row)
+        high = record.value('HighCode')
+        low = record.value('LowCode')
+        cal_high = record.value('CalHighdBm')
+        cal_low = record.value('CalLowdBm')
+        if 0 not in (high, low, cal_high, cal_low):
+            slope = (high - low)/(cal_high - cal_low)
+            intercept = cal_high - (high / slope)
+            self.update_row(Intercept=intercept, Slope=slope)
+            ui.cal_table.selectRow(self.row)
+        else:
+            popUp('One or all of the ADC Codes/calibration values are zero', 'Ok', 'Warn')
+
+    def unlimited(self):
+        while self.tm.canFetchMore():  # remove 256 row limit for QSql Query
+            self.tm.fetchMore()
+
 
 ###############################################################################
 # other methods
 
 
 def spiError(message):
-    logging.info('SPI error')
+    logging.info(message)
     ui.spi_error.setText(message)
 
 
 def exit_handler():
-    # meter.running = False
-    meter.mp_running.clear()
+    stopMeter()
     while meter.fifo.qsize() > 0:
         meter.fifo.get()
     config.disconnect()
@@ -409,7 +400,7 @@ def importS2P():
             parameters.insertData(AssetID=index, FreqMHz=Freq[i]/1e6, ValuedB=round(Loss[i], 3))
             parameters.marker.setValue(Freq[i]/1e6)
             ui.device_progress.setValue(int((i + 1) * 100 / len(Freq)))
-        parameters.showCurve()
+        parameters.showCurve('ValuedB')
         activeButtons(True)
 
         # insert the nominal value to the Device data table
@@ -421,6 +412,7 @@ def importS2P():
 
 
 def sumLosses():  # this might be better done with a relational query? (to avoid changing the model filter)
+    attenuators.unlimited()
     attenuators.tm.setFilter('inUse =' + str(1))  # set model to devices in use
     attenuators.updateModel()
     attenuators.loss = 0
@@ -476,60 +468,68 @@ def popUp(message, button, icon):
 
 def deleteFreq():  # delete parameter for the frequency shown in the GUI
     parameters.deleteRow()
-    parameters.showCurve()
+    parameters.showCurve('ValuedB')
 
 
 def deleteAllFreq():
-    if attenuators.row is not None:
-        activeButtons(False)
-        parameters.tm.sort(parameters.tm.fieldIndex('FreqMHz'), QtCore.Qt.SortOrder.AscendingOrder)
-        rows = parameters.tm.rowCount()
-        logging.info(f'Deleting {rows} records')
-        ui.device_message.setText(f'Deleting {rows} records')
-        for i in range(rows):
-            try:
-                parameters.marker.setValue((parameters.tm.record(i).value('FreqMHz')))
-                ui.device_progress.setValue(int(i * 100 / rows))
-            except TypeError:
-                parameters.marker.setValue((parameters.tm.record(0).value('FreqMHz')))
-            parameters.tm.removeRow(i)
-            parameters.tm.submit()
-        parameters.tm.select()
-        parameters.showCurve()
-        activeButtons(True)
-        ui.device_message.setText('')
-    else:
+    if attenuators.row is None:
         popUp('No device selected', 'Ok', 'Warn')
+        return
+    activeButtons(False)
+    parameters.unlimited()
+    parameters.tm.sort(parameters.tm.fieldIndex('FreqMHz'), QtCore.Qt.SortOrder.AscendingOrder)
+    rows = parameters.tm.rowCount()
+    logging.info(f'Deleting {rows} records')
+    ui.device_message.setText(f'Deleting {rows} records')
+    for i in range(rows):
+        try:
+            parameters.marker.setValue((parameters.tm.record(i).value('FreqMHz')))
+            ui.device_progress.setValue(int(i * 100 / rows))
+        except TypeError:
+            parameters.marker.setValue((parameters.tm.record(0).value('FreqMHz')))
+        parameters.tm.removeRow(i)
+        parameters.tm.submit()
+    parameters.tm.select()
+    parameters.showCurve('ValuedB')
+    activeButtons(True)
+    ui.device_message.setText('')
 
 
 def addFreq():
-    parameters.insertData(ui.assetID.value(), 0, 0)
-    parameters.dwm.toLast()
+    if attenuators.row is None:
+        popUp('No device selected', 'Ok', 'Warn')
+        return
+    parameters.insertData(attenuators.tm.record(attenuators.row).value('AssetID'), 0, 0)
 
 
 def deleteDevice():  # delete all the device parameters first, then delete the device
-    ui.tabWidget.setEnabled(False)
+    if attenuators.row is None:
+        popUp('No device selected', 'Ok', 'Warn')
+        return
     deleteAllFreq()
     if parameters.tm.rowCount() == 0:
         attenuators.deleteRow()
+        attenuators.row = None
     else:
         popUp('failed to delete some device parameters', 'Ok', 'Warn')
     sumLosses()
-    ui.tabWidget.setEnabled(True)
 
 
 def addDevice():
-    attenuators.insertData('', '', '')
-    attenuators.dwm.toLast()  # devices are autonumbered so new one is the highest number
+    attenuators.insertData(Description='New Device', inUse=0)
 
 
 def deleteCal():
+    if calibration.row is None:
+        popUp('No row selected', 'Ok', 'Warn')
+        return
     calibration.deleteRow()
-    calibration.showCurve()
+    calibration.showCurve('Slope')
+    calibration.row = None
 
 
 def addCal():
-    calibration.insertData(CalHighdBm=-10, FreqMHz=1, CalLowdBm=-50, HighCode=0, LowCode=0, Slope=0, Intercept=0)
+    calibration.insertData(CalHighdBm=-10, FreqMHz=6000, CalLowdBm=-50, HighCode=0, LowCode=0, Slope=0, Intercept=0)
     calibration.tm.submit()
 
 
@@ -539,17 +539,21 @@ def openSPI():
     spi.no_cs = False
     spi.mode = 3  # set clock polarity and phase to 0b11
 
-    # spi max_speed_hz must be integer val accepted by driver : Pi max=31.2e6 but AD7887 max=125ks/s or 2MHz fSCLK
-    # valid values are 7.629e3, 15.2e3, 30.5e3, 61e3, 122e3, 244e3, 488e3, 976e3, 1.953e6, [3.9, 7.8, 15.6, 31.2e6]
-    spi.max_speed_hz = 1953000
+    # spi max_speed_hz = integer accepted by driver : Pi max=31.2e6 but AD7887 max=125ks/s or 2MHz fSCLK
+    # valid values (250MHz clock/power of 2). E.g.  7.629e3, 15.2e3, 30.5e3, 61e3, 122e3, 244e3, 488e3, 976e3, 1.953e6
+    # 1.953e6 causes regular errors (spikes). Probably depends on GPIO connection capacitance etc
+    spi.max_speed_hz = 1736111
 
 
 def stopMeter():
     meter.mp_running.clear()
-    while meter.spiTransaction.is_alive():
-        logging.info('waiting for spiTransaction process to stop')
-        time.sleep(0.1)
-    logging.info('spiTransaction process stopped')
+    try:
+        while meter.spiTransaction.is_alive():
+            logging.info('waiting for spiTransaction process to stop')
+            time.sleep(0.1)
+        logging.info('spiTransaction process stopped')
+    except AttributeError:
+        pass
     meter.gui_update_timer.stop()  # stop timer
     ui.powerWatts.setValue(0)
     ui.measurementRate.setValue(0)
@@ -558,11 +562,6 @@ def stopMeter():
     ui.spi_error.setText('')
     activeButtons(True)
     spi.close()
-
-
-def slidersMoved():
-    if meter.mp_running:
-        stopMeter()
 
 
 def freqChanged():
@@ -592,14 +591,22 @@ def activeButtons(tF):
 def device_clicked():
     record = attenuators.table_clicked(ui.device_table)
     parameters.tm.setFilter('AssetID= "' + str(record.value('AssetID')) + '"')
-    parameters.showCurve()
+    parameters.marker.setValue(parameters.tm.record(0).value('FreqMHz'))
+    parameters.marker.label.setText(f'{record.value("Part")} {record.value("Description")}')
+    parameters.showCurve('ValuedB')
+
+
+def cal_clicked():
+    record = calibration.table_clicked(ui.cal_table)
+    calibration.marker.setValue(record.value('FreqMHz'))
+    calibration.marker.label.setText(f'{record.value("Slope"):.2f}')
 
 
 ###############################################################################
 # Instantiate classes
 app = QtWidgets.QApplication([])  # create QApplication for the GUI
 app.setApplicationName('QtRFPower')
-app.setApplicationVersion(' v1.0')
+app.setApplicationVersion(' v1.0.1')
 ui = uic.loadUi("powerMeter.ui")
 
 config = Database()
@@ -630,9 +637,12 @@ yellow = pyqtgraph.mkPen(color='y', width=1.0)
 ui.graphWidget.setYRange(-60, 10)
 ui.graphWidget.setBackground('k')  # black
 ui.graphWidget.showGrid(x=True, y=True)
-ui.graphWidget.addLine(y=0, movable=False, pen=red, label='max', labelOpts={'position':0.05, 'color':('r')})
-ui.graphWidget.addLine(y=-10, movable=False, pen=blue, label='', labelOpts={'position':0.025, 'color':('c')})
-ui.graphWidget.addLine(y=-50, movable=False, pen=blue, label='', labelOpts={'position':0.025, 'color':('c')})
+ui.graphWidget.addLine(y=0, movable=False, pen=red, label='max',
+                       labelOpts={'position': 0.05, 'color': ('r')})
+ui.graphWidget.addLine(y=-10, movable=False, pen=blue, label='',
+                       labelOpts={'position': 0.025, 'color': ('c')})
+ui.graphWidget.addLine(y=-50, movable=False, pen=blue, label='',
+                       labelOpts={'position': 0.025, 'color': ('c')})
 ui.graphWidget.setLabel('left', 'Sensor Power', 'dBm')
 ui.graphWidget.setLabel('bottom', 'Power Measurement', 'Samples')
 powerCurve = ui.graphWidget.plot([], [], name='Sensor', pen=yellow, width=1)
@@ -662,10 +672,9 @@ ui.actionClose.triggered.connect(app.closeAllWindows)
 ui.runButton.clicked.connect(meter.startMeasurement)
 ui.stopButton.clicked.connect(stopMeter)
 ui.freqBox.valueChanged.connect(freqChanged)
-ui.memorySize.valueChanged.connect(slidersMoved)
 ui.rangeBox.currentIndexChanged.connect(meter.userRange)
-parameters.marker.sigPositionChanged.connect(parameters.update_level)
-calibration.marker.sigPositionChanged.connect(calibration.update_level)
+parameters.marker.sigPositionChanged.connect(lambda: parameters.update_level('ValuedB'))
+calibration.marker.sigPositionChanged.connect(lambda: calibration.update_level('Slope'))
 
 # Devices widget
 ui.actionDevices.triggered.connect(lambda: ui.meter.setCurrentWidget(ui.devices))
@@ -674,12 +683,14 @@ ui.delFreq.clicked.connect(deleteFreq)
 ui.delAllFreq.clicked.connect(deleteAllFreq)
 ui.loadS2P.clicked.connect(importS2P)
 ui.device_table.clicked.connect(device_clicked)
+ui.deleteDevice.clicked.connect(deleteDevice)
+ui.addDevice.clicked.connect(addDevice)
 
 # Calibration widget
 ui.actionCalibration.triggered.connect(lambda: ui.meter.setCurrentWidget(ui.calibration))
 ui.addCal.clicked.connect(addCal)
 ui.deleteCal.clicked.connect(deleteCal)
-ui.cal_table.clicked.connect(lambda: calibration.table_clicked(ui.cal_table))
+ui.cal_table.clicked.connect(cal_clicked)
 ui.measHigh.clicked.connect(lambda: calibration.update_code('HighCode'))
 ui.measLow.clicked.connect(lambda: calibration.update_code('LowCode'))
 ui.calibrate.clicked.connect(calibration.calibrate)
@@ -707,7 +718,7 @@ ui.rangeBox.addItems(Units)
 
 sumLosses()
 selectCal()
-calibration.showCurve()
+calibration.showCurve('Slope')
 
 ui.show()
 
