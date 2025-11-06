@@ -39,7 +39,7 @@ The windows are designed for a 1024x600 display.
 
 ## Meter view
 
-Contains an analogue-style meter with pointer and adjustable time interval for paek or average processing, up to 10s.   There is a time-power moving display with adjustable 'time points' of up to 250,000 samples which is enough for about 6 seconds of display at maximum measurement rate.
+Contains an analogue-style meter with pointer and adjustable time interval for peak or average processing, up to 10s.   There is a time-power moving display with adjustable 'time points' of up to 250,000 samples which is enough for about 6 seconds of display at maximum measurement rate.
   
 The sensor calibration varies with frequency, so the frequency of the RF to be measured is required. The AD8318 sensor has an absolute maximum input power (damage level) of +10dBm but becomes less linear between -10dBm and 0dBm and for this reason a reminder not to exceed 0dBm is shown in red on the graph.  It does not matter if the programme is running or not, if the Ad8318 sensor input power maximum is exceeded it will be damaged.
 
