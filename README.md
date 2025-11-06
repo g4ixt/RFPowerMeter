@@ -47,7 +47,7 @@ The analogue-style meter range can be set to auto or manual scale using combobox
 
 The time-power moving display always shows the sensor power, not taking into account any added attenuation. A red horizontal line at 0dBm labelled 'max' is there as a reminder. Dotted blue horizontal lines show the optimum linear range of the sensor and are intended to be the nominal power calibration points. Either or both axes can be zoomed, using a mouse, with or without measurement running.  To restore, click on the 'A' on bottom left corner of graph.  This is a standard feature provided by pyqtgraph.
 
-The screen shows the sensor power and the total attenuation which has been set 'in use' on the Devices tab, along with the RF power calculated from the sensor power and total attenuation.  The current measurement sample rate is also shown below the meter.  The measurement rate can be adjusted with the SPI speed combobox - on my system anything over 976562 results in SPI data errors.
+The screen shows the sensor power and the total attenuation which has been set 'in use' in the Devices view, along with the RF power calculated from the sensor power and total attenuation.  The current measurement sample rate is also shown below the meter.  The measurement rate can be adjusted with the SPI speed combobox - on my system anything over 976562 results in SPI data errors.
 
 ## Devices view
 
