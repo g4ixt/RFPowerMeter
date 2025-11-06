@@ -4,8 +4,8 @@ Python AD8318 RF Power Meter application for the Raspberry Pi using a PyQT5 GUI.
 
 The AD8318 Digital RF Power Detector pcb is by made by SV1AFN and communicates with the Pi using SPI.  Calibration and Attenuator data is stored in a SQLite database.  https://www.sv1afn.com/en/products/ad8318-digital-rf-power-detector.html
   
-![Display_tab__20230108_215539](https://github.com/g4ixt/RFPowerMeter/assets/76836635/11034406-7b20-4d46-990b-4ca77bc0434a)
-  
+<img width="1023" height="560" alt="image" src="https://github.com/user-attachments/assets/29faf89d-113c-4227-84ee-eed1b4dd8a8b" />
+
 ## Note: The AD7887 ADC on the PCB has a 5V supply.
 It must not be directly connected to the Pi GPIO SPI which operates at 3.3V.  I changed R5 to 180R and put a 3.3V zener diode across C9 (soldered directly across pins 2 and 3 of the AD7887) to reduce Vdd to 3.3V.  See picture.
 
