@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1008</width>
+    <width>1024</width>
     <height>720</height>
    </rect>
   </property>
@@ -49,7 +49,7 @@
             </property>
             <property name="font">
              <font>
-              <pointsize>9</pointsize>
+              <pointsize>8</pointsize>
               <weight>75</weight>
               <bold>true</bold>
              </font>
@@ -103,6 +103,7 @@
            <widget class="QLabel" name="label">
             <property name="font">
              <font>
+              <pointsize>8</pointsize>
               <weight>75</weight>
               <bold>true</bold>
              </font>
@@ -156,7 +157,7 @@
             </property>
             <property name="font">
              <font>
-              <pointsize>9</pointsize>
+              <pointsize>8</pointsize>
               <weight>75</weight>
               <bold>true</bold>
              </font>
@@ -489,7 +490,7 @@
             </property>
             <property name="font">
              <font>
-              <pointsize>9</pointsize>
+              <pointsize>8</pointsize>
               <weight>75</weight>
               <bold>true</bold>
              </font>
@@ -599,7 +600,7 @@
             </property>
             <property name="font">
              <font>
-              <pointsize>9</pointsize>
+              <pointsize>8</pointsize>
               <weight>75</weight>
               <bold>true</bold>
              </font>
@@ -619,7 +620,7 @@
             </property>
             <property name="font">
              <font>
-              <pointsize>9</pointsize>
+              <pointsize>8</pointsize>
               <weight>75</weight>
               <bold>true</bold>
              </font>
@@ -639,7 +640,7 @@
             </property>
             <property name="font">
              <font>
-              <pointsize>9</pointsize>
+              <pointsize>8</pointsize>
               <weight>75</weight>
               <bold>true</bold>
              </font>
@@ -690,7 +691,7 @@
            <widget class="QLabel" name="label_3">
             <property name="font">
              <font>
-              <pointsize>9</pointsize>
+              <pointsize>8</pointsize>
               <weight>75</weight>
               <bold>true</bold>
              </font>
@@ -749,7 +750,7 @@
             </property>
             <property name="font">
              <font>
-              <pointsize>9</pointsize>
+              <pointsize>8</pointsize>
               <weight>75</weight>
               <bold>true</bold>
              </font>
@@ -871,7 +872,7 @@
             </property>
             <property name="font">
              <font>
-              <pointsize>9</pointsize>
+              <pointsize>8</pointsize>
               <weight>75</weight>
               <bold>true</bold>
              </font>
@@ -1270,7 +1271,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>1008</width>
+     <width>1024</width>
      <height>23</height>
     </rect>
    </property>
