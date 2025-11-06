@@ -686,7 +686,7 @@ class AnalogGaugeWidget(QWidget):
 
         # Draw Center Point
         if self.enable_CenterPoint:
-            self.draw_big_needle_center_point(diameter=(self.widget_diameter / 6))
+            self.draw_big_needle_center_point(diameter=(self.widget_diameter / 10))
 
     ###############################################################################################
     # MouseEvents

@@ -134,7 +134,7 @@ class Measurement():
             self.mp_running.set()
             self.setTimebase()
             self.sampleCounter = 0
-            self.peak_power = 0
+            self.peak_power = -120
             self.sampleTimer.start()
             self.gui_update_timer.start(50)
             if __name__ == '__main__':  # prevents the subprocess from launching another subprocess
@@ -177,15 +177,15 @@ class Measurement():
         self.sampleTimer.restart()
         average = int(sample_rate * ui.averaging.value() / 1000)
 
-        avgP = np.average(self.yAxis[:average])
-        PdBm = np.subtract(avgP, attenuators.loss)  # correct for couplers and attenuators
-        PdBm_pk = np.max(self.yAxis, self.peak_power)
+        peak_power = np.max(self.yAxis[:average])
+        # self.peak_power = peak_power
+        avg_power = np.average(self.yAxis[:average])
+        # avg_dBm = np.subtract(avg_power, attenuators.loss)  # correct for couplers and attenuators
 
         logging.debug(f'calcPowers: sample_rate = {sample_rate} rates = {self.sample_rates}')
 
         Axis = self.yAxis
-
-        self.updateGUI(Axis, avgP, PdBm, sample_rate, PdBm_pk)
+        self.updateGUI(Axis, peak_power, avg_power, sample_rate)
 
     def running_mean(self, x, N):
         cumsum = np.cumsum(np.insert(x, 0, 0))
@@ -196,12 +196,14 @@ class Measurement():
         self.xAxis = np.arange(0, self.samples, 1, dtype=int)  # fill the np array with consecutive integers
         self.yAxis = np.full(self.samples, -75, dtype=float)  # fill the np array with each element = 75
 
-    def updateGUI(self, Axis, avgP, PdBm, sample_rate, PdBm_pk):
+    def updateGUI(self, Axis, peak_power, avg_power, sample_rate):
         # update power meter range and label
-        if ui.rangeBox.currentText() == 'Auto Range':
+        avg_dBm = np.subtract(avg_power, attenuators.loss)  # correct for couplers and attenuators
+        peak_dBm = np.subtract(peak_power, attenuators.loss)  # correct for couplers and attenuators
+        if ui.rangeBox.currentText() == 'Auto':
             try:
                 # determine if the power units are nW, uW, mW, or W
-                self.scale = next(index for index, listValue in enumerate(dB) if listValue > PdBm)
+                self.scale = next(index for index, listValue in enumerate(dB) if listValue > avg_dBm)
                 ui.powerUnit.setText(str(Units[self.scale]))
                 ui.powerWatts.setSuffix(str(Units[self.scale]))
             except StopIteration:
@@ -210,37 +212,38 @@ class Measurement():
                 stopMeter()
                 return
         else:
-            self.userRange()  # set the units from the combo box
+            self.userRange()  # set the units and scale from the combo boxes
 
-        if ui.peakBox.isChexked():
-            power = 10 ** ((PdBm_pk - dB[self.scale - 1]) / 10)
+        if ui.peakButton.isChecked():
+            measured_power = 10 ** ((peak_dBm - dB[self.scale - 1]) / 10)
         else:
-            power = 10 ** ((PdBm - dB[self.scale - 1]) / 10)
-        self.set_multiplier(power)
+            measured_power = 10 ** ((avg_dBm - dB[self.scale - 1]) / 10)
+        self.set_multiplier(measured_power)
 
         # update boxes on meter widget (uses the average powers)
-        ui.rate.display(str(int(sample_rate)))
-        ui.sensorPower.setValue(avgP)
-        ui.inputPower.setValue(PdBm)
+        ui.sample_rate.setValue(int(sample_rate))
+        ui.sensorPower.setValue(avg_power)
+        ui.inputPower.setValue(avg_dBm)
 
         # update the analogue gauge (uses the average powers)
-        ui.meter_widget.update_value(power, mouse_controlled=False)
-        ui.powerWatts.setValue(power)
+        ui.meter_widget.update_value(measured_power, mouse_controlled=False)
+        ui.powerWatts.setValue(measured_power)
 
         # update the moving pyqtgraph (uses sampled powers with no averaging)
         powerCurve.setData(self.xAxis, Axis)
 
     def userRange(self):
         # set the units from the combo box
-        self.scale = ui.rangeBox.currentIndex() - 1
-        ui.powerUnit.setText(ui.rangeBox.currentText())
-        ui.powerWatts.setSuffix(Units[self.scale])
+        self.scale = ui.rangeBox.currentIndex()
+        ui.powerUnit.setText(str(Units[self.scale]))
+        if self.scale > 0:
+            ui.powerWatts.setSuffix(str(Units[self.scale]))
         if ui.multiBox.currentText():
             ui.meter_widget.set_MaxValue(int(ui.multiBox.currentText()))
 
     def set_multiplier(self, power):
         # convert to display according to meter range selected
-        if ui.rangeBox.currentText() == 'Auto Range':
+        if ui.rangeBox.currentText() == 'Auto':
             ui.meter_widget.set_MaxValue(10.0)  # a max of 1 on the widget doesn't work
             # if power >= 1:
             #     ui.meter_widget.set_MaxValue(10.0)
@@ -576,7 +579,7 @@ def stopMeter():
         pass
     meter.gui_update_timer.stop()  # stop timer
     ui.meter_widget.update_value(0, mouse_controlled=False)
-    ui.rate.display('0')
+    ui.sample_rate.setValue(0)
     ui.spi_error.setText('')
     activeButtons(True)
     spi.close()
@@ -636,7 +639,7 @@ def cal_clicked():
 # Instantiate classes
 app = QtWidgets.QApplication([])  # create QApplication for the GUI
 app.setApplicationName('QtRFPower')
-app.setApplicationVersion(' v1.0.3')
+app.setApplicationVersion(' v1.0.4')
 ui = uic.loadUi("powerMeter.ui")
 
 config = Database()
@@ -654,7 +657,7 @@ attenuators.marker.setAngle(0)
 
 # adjust analog gauge meter
 ui.meter_widget.set_MaxValue(10)
-ui.meter_widget.set_enable_CenterPoint(enable=False)
+ui.meter_widget.set_enable_CenterPoint(enable=True)
 ui.meter_widget.set_enable_value_text(enable=False)
 ui.meter_widget.set_enable_filled_Polygon(enable=True)
 ui.meter_widget.set_start_scale_angle(135)
@@ -753,6 +756,7 @@ ui.rangeBox.addItems(Units)
 ui.spi_freq.addItems(spi_rate)
 ui.spi_freq.setCurrentIndex(6)
 ui.multiBox.addItems(multiplier)
+ui.spi_error.setText('')
 
 sumLosses()
 selectCal()
