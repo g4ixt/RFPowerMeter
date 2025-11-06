@@ -39,13 +39,13 @@ The windows are designed for a 1024x600 display.
 
 ## Meter view
 
-Contains an analogue-style meter with pointer and adjustable time interval for peak or average processing, up to 10s.   There is a time-power moving display with adjustable 'time points' of up to 250,000 samples which is enough for about 6 seconds of display at maximum measurement rate.
+Contains an analogue-style pointer meter and an oscilloscope-style moving display with up to 250,000 'time points' samples (which is enough for about 6 seconds of display at maximum measurement rate).  There is an adjustable rolling time interval for peak or average calculation.
   
 The sensor calibration varies with frequency, so the frequency of the RF to be measured is required. The AD8318 sensor has an absolute maximum input power (damage level) of +10dBm but becomes less linear between -10dBm and 0dBm and for this reason a reminder not to exceed 0dBm is shown in red on the graph.  It does not matter if the programme is running or not, if the Ad8318 sensor input power maximum is exceeded it will be damaged.
 
-The analogue-style meter range can be set to auto or manual scales using comboboxes.
+The analogue-style meter range can be set to auto or manual scale using comboboxes.
 
-The time-power moving display shows the sensor power only, not taking into account any selected attenuation. A red horizontal line at 0dBm labelled 'max' is there as a reminder. Dotted blue horizontal lines show the optimum linear range of the sensor and are intended to be the nominal power calibration points. Either or both axes can be zoomed, using a mouse, with or without measurement running.  To restore, click on the 'A' on bottom left corner of graph.  This is a standard feature provided by pyqtgraph.
+The time-power moving display always shows the sensor power, not taking into account any added attenuation. A red horizontal line at 0dBm labelled 'max' is there as a reminder. Dotted blue horizontal lines show the optimum linear range of the sensor and are intended to be the nominal power calibration points. Either or both axes can be zoomed, using a mouse, with or without measurement running.  To restore, click on the 'A' on bottom left corner of graph.  This is a standard feature provided by pyqtgraph.
 
 The screen shows the sensor power and the total attenuation which has been set 'in use' on the Devices tab, along with the RF power calculated from the sensor power and total attenuation.  The current measurement sample rate is also shown below the meter.  The measurement rate can be adjusted with the SPI speed combobox - on my system anything over 976562 results in SPI data errors.
 
